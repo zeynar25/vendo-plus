@@ -1,0 +1,4 @@
+# Runtime dependencies of the Vendo+ backend (exact versions, so Render
+# installs the same thing every time).
+fastapi==0.165.0
+uvicorn[standard]==0.54.0
