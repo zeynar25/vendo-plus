@@ -61,10 +61,12 @@ Status values (decided by the firmware, re-checked by the backend):
 | --- | --- | --- |
 | `ok` | Valid converted reading | Yes |
 | `corrected_zero` | Hopper read from -10 g to 0 g, sent as 0 | Yes |
-| `over_capacity` | Above capacity (hopper over 1,050 g, coil row over 10 items) | No, stored only |
+| `over_capacity` | Above capacity but not rejected (hopper over 1,000 g up to 1,050 g, coil row over 10 items) | No, stored only |
 | `unavailable` | Channel not ready, or no echo before the timeout | No |
-| `out_of_range` | Rejected reading (hopper below -10 g, distance outside the calibrated range) | No |
+| `out_of_range` | Rejected reading (hopper below -10 g or above 1,050 g, distance outside the calibrated range) | No |
 
+The backend applies the same ranges again and corrects the status if needed (for example,
+a hopper `ok` at -4 g is stored as `corrected_zero` 0 g, and a coil-row count is rounded to whole items).
 The firmware never sends an invalid reading as a valid zero. If a delivery fails,
 the next batch carries the newest state; old values are never replayed as current.
 

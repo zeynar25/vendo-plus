@@ -10,6 +10,7 @@ from app import __version__
 from app.config import Settings
 from app.db import create_db_engine, init_db
 from app.ml.model import load_model
+from app.routes import ingest
 
 log = logging.getLogger("vendoplus")
 
@@ -44,6 +45,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         """Liveness check for Render. Touches nothing else, so it answers even if the database is down."""
         return {"status": "ok", "version": __version__}
 
+    app.include_router(ingest.router)
     return app
 
 
