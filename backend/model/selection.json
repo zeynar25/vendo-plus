@@ -1,0 +1,163 @@
+{
+  "selected_using": "validation partition only (test partition not loaded)",
+  "created_at": "2026-11-17T23:44:59",
+  "scikit_learn_version": "1.9.1",
+  "recipe_version": "R2 (2026-11-17)",
+  "feature_columns_in_order": [
+    "stock_ratio",
+    "rate_1h",
+    "rate_6h",
+    "rate_24h",
+    "hour_sin",
+    "hour_cos",
+    "weekday_sin",
+    "weekday_cos",
+    "hopper_coffee",
+    "hopper_milk",
+    "hopper_chocolate"
+  ],
+  "labels": [
+    "Low",
+    "Medium",
+    "High"
+  ],
+  "targets": {
+    "macro_f1": 0.8,
+    "high_recall": 0.9
+  },
+  "dataset_sha256": "a1426f8f088e8f2b2965b2d93c519d63bcf488bf99d20c769c641ed1b4e1cb2a",
+  "training_rows": 87120,
+  "validation_rows": 21600,
+  "kept_per_algorithm": {
+    "logistic_regression": {
+      "algorithm": "logistic_regression",
+      "params": {
+        "C": 1
+      },
+      "fit_seconds": 0.4,
+      "converged": true,
+      "accuracy": 0.805556,
+      "macro_f1": 0.697039,
+      "low_precision": 0.958516,
+      "low_recall": 0.852704,
+      "low_f1": 0.902519,
+      "low_support": 15608,
+      "medium_precision": 0.561315,
+      "medium_recall": 0.644598,
+      "medium_f1": 0.60008,
+      "medium_support": 4637,
+      "high_precision": 0.461088,
+      "high_recall": 0.813284,
+      "high_f1": 0.588518,
+      "high_support": 1355,
+      "confusion_matrix": [
+        [
+          13309,
+          2118,
+          181
+        ],
+        [
+          541,
+          2989,
+          1107
+        ],
+        [
+          35,
+          218,
+          1102
+        ]
+      ],
+      "meets_both_targets_on_validation": false,
+      "model_file": "results/models/logistic_regression.joblib",
+      "model_sha256": "c5f73f8ae727a49611c8c9c5e6efb9547c3ff5956359fdeac76c14203e774077"
+    },
+    "random_forest": {
+      "algorithm": "random_forest",
+      "params": {
+        "n_estimators": 200,
+        "max_depth": 16,
+        "min_samples_leaf": 20
+      },
+      "fit_seconds": 6.2,
+      "converged": true,
+      "accuracy": 0.811481,
+      "macro_f1": 0.699403,
+      "low_precision": 0.956396,
+      "low_recall": 0.865646,
+      "low_f1": 0.908761,
+      "low_support": 15608,
+      "medium_precision": 0.581273,
+      "medium_recall": 0.618503,
+      "medium_f1": 0.59931,
+      "medium_support": 4637,
+      "high_precision": 0.45254,
+      "high_recall": 0.84797,
+      "high_f1": 0.590139,
+      "high_support": 1355,
+      "confusion_matrix": [
+        [
+          13511,
+          1897,
+          200
+        ],
+        [
+          579,
+          2868,
+          1190
+        ],
+        [
+          37,
+          169,
+          1149
+        ]
+      ],
+      "meets_both_targets_on_validation": false,
+      "model_file": "results/models/random_forest.joblib",
+      "model_sha256": "768aaa18831a278afa4e9c82fee477667fdccaf7d12c94bd4e0b3ab1e60d664e"
+    },
+    "hist_gradient_boosting": {
+      "algorithm": "hist_gradient_boosting",
+      "params": {
+        "max_leaf_nodes": 31
+      },
+      "fit_seconds": 3.6,
+      "converged": true,
+      "accuracy": 0.806435,
+      "macro_f1": 0.695347,
+      "low_precision": 0.957901,
+      "low_recall": 0.857189,
+      "low_f1": 0.904751,
+      "low_support": 15608,
+      "medium_precision": 0.569243,
+      "medium_recall": 0.625836,
+      "medium_f1": 0.596199,
+      "medium_support": 4637,
+      "high_precision": 0.448915,
+      "high_recall": 0.839852,
+      "high_f1": 0.58509,
+      "high_support": 1355,
+      "confusion_matrix": [
+        [
+          13379,
+          2012,
+          217
+        ],
+        [
+          555,
+          2902,
+          1180
+        ],
+        [
+          33,
+          184,
+          1138
+        ]
+      ],
+      "meets_both_targets_on_validation": false,
+      "model_file": "results/models/hist_gradient_boosting.joblib",
+      "model_sha256": "69c9207c3d4d007274ed769fb5efcaf8f63a6bdcf21b77c751331beb3b7df9f4"
+    }
+  },
+  "final_model": "random_forest",
+  "final_model_reason": "no kept model meets both targets on validation; highest validation macro F1"
+}

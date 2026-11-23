@@ -103,7 +103,7 @@ Read endpoints are open. Operator actions (every `POST` below) require the heade
 | --- | --- |
 | `label` | `Low`, `Medium`, `High`, or `null` while no valid reading exists or a refill is open |
 | `method` | `model` (Random Forest) or `basic` (basic stock warning) |
-| `reason` | Why the basic warning is used: `coil_row`, `history_short`, `history_gap`, `history_reset`, `refill_in_window`; `null` for `model` |
+| `reason` | Why the basic warning is used: `coil_row`, `history_short`, `history_gap`, `history_reset`, `refill_in_window`, `model_unavailable`; `null` for `model` |
 
 Basic stock warning (the stock-only baseline): High at or below 5% of capacity,
 Medium at or below 20%, Low above that. For a 1,000 g hopper that is 50 g and

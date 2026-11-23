@@ -1,5 +1,6 @@
 """FastAPI application entry point (Render runs: uvicorn app.main:app)."""
 
+import logging
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
@@ -8,6 +9,9 @@ from fastapi.middleware.cors import CORSMiddleware
 from app import __version__
 from app.config import Settings
 from app.db import create_db_engine, init_db
+from app.ml.model import load_model
+
+log = logging.getLogger("vendoplus")
 
 
 def create_app(settings: Settings | None = None) -> FastAPI:
@@ -19,6 +23,14 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         if settings.auto_create_tables:
             init_db(engine)
         app.state.engine = engine
+        # A model that fails its integrity check is not used; the service still runs and
+        # shows the basic stock warning, and /api/v1/system/check reports the error.
+        app.state.model, app.state.model_error = None, None
+        try:
+            app.state.model = load_model(settings.model_dir)
+        except Exception as exc:  # noqa: BLE001 - any failure must leave the API up
+            app.state.model_error = f"{type(exc).__name__}: {exc}"
+            log.error("Model not loaded: %s", app.state.model_error)
         yield
         engine.dispose()
 
