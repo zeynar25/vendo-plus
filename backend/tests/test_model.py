@@ -5,7 +5,7 @@ from pathlib import Path
 import pytest
 from fastapi.testclient import TestClient
 
-from app.config import BACKEND_DIR, Settings
+from app.config import BACKEND_DIR
 from app.main import create_app
 from app.ml.model import ModelIntegrityError, load_model
 

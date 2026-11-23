@@ -10,7 +10,7 @@ from app import __version__
 from app.config import Settings
 from app.db import create_db_engine, init_db
 from app.ml.model import load_model
-from app.routes import ingest
+from app.routes import dashboard, ingest
 
 log = logging.getLogger("vendoplus")
 
@@ -46,6 +46,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         return {"status": "ok", "version": __version__}
 
     app.include_router(ingest.router)
+    app.include_router(dashboard.router)
     return app
 
 
