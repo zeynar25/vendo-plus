@@ -4,14 +4,40 @@ The whole schema is defined here at once, because create_all() only adds
 missing tables and never changes existing ones.
 """
 
+from datetime import UTC, datetime
+
 from sqlalchemy import (JSON, BigInteger, Column, DateTime, Float, ForeignKey, Index, Integer,
-                        MetaData, String, Table, UniqueConstraint)
+                        MetaData, String, Table, TypeDecorator, UniqueConstraint)
 
 metadata = MetaData()
 
 # BIGINT keys on PostgreSQL; SQLite needs INTEGER for auto-increment.
 BigId = BigInteger().with_variant(Integer(), "sqlite")
-TS = DateTime(timezone=True)
+
+
+class UTCDateTime(TypeDecorator):
+    """Store every time as UTC and always read it back as an aware UTC datetime.
+
+    PostgreSQL keeps the offset; SQLite silently drops it, so converting before
+    writing is what makes both databases agree.
+    """
+    impl = DateTime(timezone=True)
+    cache_ok = True
+
+    def process_bind_param(self, value: datetime | None, dialect):
+        if value is None:
+            return None
+        if value.tzinfo is None:
+            value = value.replace(tzinfo=UTC)
+        return value.astimezone(UTC)
+
+    def process_result_value(self, value: datetime | None, dialect):
+        if value is None:
+            return None
+        return value.replace(tzinfo=UTC) if value.tzinfo is None else value.astimezone(UTC)
+
+
+TS = UTCDateTime()
 
 machines = Table(
     "machines", metadata,

@@ -36,7 +36,7 @@ class StoredBatch:
     batch_id: int
     machine: dict
     reading_ids: list[int]
-    compartment_ids: list[int]
+    compartments: list[dict]
 
 
 def authenticate(conn: Connection, machine_id: str, device_key: str | None) -> dict:
@@ -92,7 +92,7 @@ def store_batch(conn: Connection, batch: BatchIn, device_key: str | None, receiv
     except IntegrityError as exc:  # two copies arriving at the same moment
         raise DuplicateBatch() from exc
 
-    reading_ids, compartment_ids = [], []
+    reading_ids, touched = [], []
     for reading in batch.readings:
         comp = comps[reading.compartment]
         status, value = recheck(comp, reading.status, reading.value)
@@ -101,6 +101,5 @@ def store_batch(conn: Connection, batch: BatchIn, device_key: str | None, receiv
             received_at=received_at, value=value, status=status,
             calibration_version=reading.calibration_version)).inserted_primary_key[0]
         reading_ids.append(rid)
-        compartment_ids.append(comp["id"])
-    return StoredBatch(batch_id=batch_id, machine=machine, reading_ids=reading_ids,
-                       compartment_ids=compartment_ids)
+        touched.append(comp)
+    return StoredBatch(batch_id=batch_id, machine=machine, reading_ids=reading_ids, compartments=touched)
