@@ -45,6 +45,14 @@ def refill_is_open(conn: Connection, comp_id: int) -> bool:
     return conn.execute(select(f.c.id).where(f.c.compartment_id == comp_id, f.c.status == "open")).first() is not None
 
 
+def pending_unrecorded_refill(conn: Connection, comp_id: int) -> int | None:
+    h = tables.history_resets
+    row = conn.execute(select(h.c.id).where(h.c.compartment_id == comp_id, h.c.reason == "unrecorded_refill",
+                                            h.c.reconciled_at.is_(None), h.c.replay_run_id.is_(None))
+                       .order_by(h.c.at.desc()).limit(1)).first()
+    return row[0] if row else None
+
+
 def compartment_state(conn: Connection, comp: dict, run: dict | None, tz: ZoneInfo, model: LoadedModel | None,
                       settings: Settings, now: datetime) -> tuple[dict, Urgency]:
     run_id = run["id"] if run else None
@@ -65,6 +73,8 @@ def compartment_state(conn: Connection, comp: dict, run: dict | None, tz: ZoneIn
         "label": urgency.label, "method": urgency.method, "reason": urgency.reason,
         "acknowledged": is_acknowledged(conn, comp["id"], run_id, urgency.label),
         "refill_open": run is None and refill_is_open(conn, comp["id"]),
+        # id of a detected refill nobody recorded; the dashboard offers to reconcile it
+        "unrecorded_refill_id": None if run else pending_unrecorded_refill(conn, comp["id"]),
     }
     return state, urgency
 

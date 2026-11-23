@@ -10,6 +10,7 @@ from sqlalchemy.exc import IntegrityError
 
 from app import tables
 from app.schemas import BatchIn
+from app.services.refills import detect_unrecorded_refill
 
 HOPPER_REJECT_BELOW_G = -10.0     # firmware rule: below -10 g is rejected
 HOPPER_REJECT_ABOVE_G = 1050.0    # firmware rule: above 1,050 g is rejected
@@ -96,6 +97,7 @@ def store_batch(conn: Connection, batch: BatchIn, device_key: str | None, receiv
     for reading in batch.readings:
         comp = comps[reading.compartment]
         status, value = recheck(comp, reading.status, reading.value)
+        detect_unrecorded_refill(conn, comp, received_at, value, status)
         rid = conn.execute(tables.readings.insert().values(
             compartment_id=comp["id"], batch_id=batch_id, replay_run_id=None, t=received_at,
             received_at=received_at, value=value, status=status,
