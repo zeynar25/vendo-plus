@@ -43,3 +43,12 @@ class BatchAccepted(BaseModel):
     batch_id: int
     accepted: int
     machine_mode: str
+
+
+class ReplayStart(BaseModel):
+    # Source (dataset) time to start at, in the machine's local time, e.g. "2025-01-15T07:00:00".
+    source_start: datetime
+    initial_stock_g: dict[str, float]
+    # Source seconds per real second. At most 180, so readings stay within 15 source minutes of each other.
+    speed: float = Field(default=60.0, ge=1.0, le=180.0)
+    noise_sd_g: float = Field(default=2.0, ge=0.0, le=20.0)

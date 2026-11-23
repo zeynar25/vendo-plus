@@ -149,6 +149,8 @@ POST /api/v1/machines/coffee-01/replay/start
 {"source_start": "2025-01-15T07:00:00", "initial_stock_g": {"coffee": 150, "milk": 150, "chocolate": 100}, "speed": 60}
 ```
 
-- The backend first loads the 24 source hours before `source_start` as history, then advances the source clock by `speed` seconds per real second (60 = one source hour per real minute) and writes one simulated reading per hopper every 5 real seconds, with 2 g Gaussian noise.
+- The backend first loads the 24 source hours before `source_start` as history (one reading per hopper every 5 source minutes), then advances the source clock by `speed` seconds per real second (60 = one source hour per real minute) and writes one simulated reading per hopper every 5 real seconds, with Gaussian noise of `noise_sd_g` (default 2 g).
+- `speed` is 1 to 180, so consecutive readings stay within 15 source minutes and the model can keep running. `source_start` must leave 24 hours of sales before it (2 March 2024 10:15 to 23 March 2025 18:11). Errors: 404 unknown machine, 409 a replay is already running, 422 anything else invalid (including the snack machine).
+- A running replay continues after the service restarts, and ends by itself (`finished`) when the sales data runs out.
 - Every reading and prediction from replay carries the run id, and `/status` shows `mode: "replay"` with the source time, so a 2025 source timestamp is never shown as a current reading.
 - Live kit batches are still stored during replay but do not drive urgency until replay stops.
