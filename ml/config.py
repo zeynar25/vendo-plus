@@ -158,12 +158,30 @@ MODELS_DIR = RESULTS_DIR / "models"
 VALIDATION_RESULTS_PATH = RESULTS_DIR / "validation_results.csv"
 SELECTION_PATH = RESULTS_DIR / "selection.json"
 
-LOGISTIC_REGRESSION_GRID = [{"C": c} for c in [0.1, 1, 10]]
+# Hyperparameter grids, one entry per configuration (D-39): 9 + 48 + 10 = 67 fits.
+# Logistic Regression: C on a log scale from 1e-4 to 1e4, the range scikit-learn's
+# LogisticRegressionCV searches by default.
+LOGISTIC_REGRESSION_GRID = [{"C": c} for c in [0.0001, 0.001, 0.01, 0.1, 1, 10, 100, 1000, 10000]]
+# Random Forest: 100 trees is the library default; depth and leaf size extend past
+# the first grid's best values (depth 16, leaf 20). Depths are numbers, never None,
+# because the size tie-breaker (train.size_key) compares them.
 RANDOM_FOREST_GRID = [
     {"n_estimators": n, "max_depth": d, "min_samples_leaf": leaf}
-    for n in [100, 200] for d in [8, 16] for leaf in [5, 20]
+    for n in [100, 200, 400] for d in [8, 16, 24, 32] for leaf in [5, 20, 50, 100]
 ]
-HIST_GRADIENT_BOOSTING_GRID = [{"max_leaf_nodes": m} for m in [15, 31]]
+# Histogram gradient boosting: 31 leaf nodes and a learning rate of 0.1 are the
+# library defaults; 0.05 was the first grid's fixed rate.
+HIST_GRADIENT_BOOSTING_GRID = [
+    {"max_leaf_nodes": m, "learning_rate": lr}
+    for m in [7, 15, 31, 63, 127] for lr in [0.05, 0.1]
+]
+
+# Model size limit (D-40). A configuration can be kept only if its model's
+# uncompressed serialized size is at most this many MB (10^6 bytes). The first
+# selected Random Forest was 39.8 MB; loading it raised the backend's memory from
+# 164 MB to 258 MB. Twice that model keeps the backend near 350 MB on Render's
+# 512 MB free instance, and its compressed file under GitHub's 50 MiB warning.
+MAX_MODEL_MB = 80.0
 
 TARGET_MACRO_F1 = 0.80
 TARGET_HIGH_RECALL = 0.90

@@ -539,6 +539,73 @@ review were taken with the rules already approved, and are recorded here.
   - `test_results.csv` SHA-256:
     `c4d85688a2414af93e78bc05018a8898fd57a0ecbbd66ff154e4fff76cc2dc80`.
 
+## 6a. Wider hyperparameter grids (20 November 2026)
+
+### Implementation decisions
+
+- **D-39 Wider grids (replaces the 13-configuration grids of section 6).**
+  The first run's kept configurations sat at the edges of their grids on
+  validation: the Random Forest at the most trees, the greatest depth and the
+  largest leaf size tried (200, 16, 20), and gradient boosting at the larger
+  leaf count (31). Every tree of the selected forest reached the depth limit.
+  The grids now extend past those edges and are built around the library
+  defaults of scikit-learn 1.9.1:
+  - Logistic Regression: C = 0.0001 to 10,000, one value per power of ten,
+    the range LogisticRegressionCV searches by default (9 fits).
+  - Random Forest: 100, 200 or 400 trees (100 is the default), maximum depth
+    8, 16, 24 or 32, minimum leaf size 5, 20, 50 or 100 (48 fits). Depths are
+    numbers, not None, because the size tie-breaker compares them.
+  - Histogram gradient boosting: 7, 15, 31, 63 or 127 leaf nodes (31 is the
+    default) with a learning rate of 0.05 or 0.1 (0.1 is the default; 0.05
+    was the first grid's fixed value) (10 fits).
+
+  The widening was decided from validation results only. The first run's test
+  results (D-37) were already known when it was decided, so the test period is
+  scored a second time for the new selection, and the thesis reports this.
+- **D-40 Model size limit.** A configuration can be kept only if its model's
+  uncompressed serialized size is at most 80 MB (`config.MAX_MODEL_MB`).
+  Configurations over the limit are fitted, scored and reported, but not kept.
+  Basis, measured in Claude's workspace with the pinned library versions:
+  - The backend uses 164 MB after loading its code; loading the first selected
+    forest (39.8 MB serialized, 17.9 MB compressed file) raised it to 258 MB.
+  - The backend runs on Render's free instance, which has 512 MB of memory.
+    A model twice the first forest keeps the backend near 350 MB.
+  - GitHub warns about files over 50 MiB and blocks files over 100 MiB; the
+    first forest's file was 45% of its serialized size.
+
+  `train.py` holds only the best model so far of each algorithm in memory.
+
+### Verified findings
+
+- **F-23 Wider-grid run** (Claude's workspace, 20 November 2026; raw file
+  SHA-256 as in this log's header; library versions as pinned; full pipeline
+  7 minutes on 2 CPU cores). `ml_dataset.csv` is unchanged from F-16 to F-22
+  (SHA-256 `a1426f8f088e8f2b2965b2d93c519d63bcf488bf99d20c769c641ed1b4e1cb2a`).
+  - All 67 configurations converged. 59 were within the 80 MB limit. The 8 over
+    it were the 200- and 400-tree forests of depth 16, 24 or 32 with a leaf
+    size of 5 (107.7 to 264.6 MB) and the 400-tree forests of depth 24 and 32
+    with a leaf size of 20 (81.0 MB each).
+  - Validation macro F1 ranged from 0.4557 (C = 0.0001) to 0.6996. Without the
+    smallest C values (0.0001 to 0.01), every configuration scored between
+    0.684 and 0.700.
+  - Kept: Logistic Regression C = 1 (0.6970, unchanged); Random Forest with
+    400 trees, depth 16 and leaf size 20 (0.6996, High recall 0.8494,
+    79.4 MB); gradient boosting with 31 leaf nodes and a learning rate of 0.05
+    (0.6953, unchanged). Selected: Random Forest.
+  - The new forest beats the first one (200 trees, 0.6994) by 0.0002 on
+    validation and is twice its size. D-11 keeps the smaller model only on an
+    exact tie, so the rule fixed before the run selects the larger forest.
+  - Test (scored once for this selection): Random Forest macro F1 0.7137,
+    High recall 0.8308, accuracy 0.8051 (first run: 0.7141, 0.8313, 0.8056).
+    Logistic Regression, gradient boosting and both baselines are unchanged.
+  - `results/selection.json` SHA-256
+    `8695d43ca67228325ff95edb910eac3bdc15e3a7877f7fbf5a63e8644834fe75`;
+    `random_forest.joblib`
+    `98e0efe8b96cfe3e33f1508658d417c4670716de3e13d7aafccb87d68853f326`
+    (35.6 MB file); `test_results.csv`
+    `f1fa85dc6c54579a8e16d7985cc7db2091e6d9b71ca01cd83415a4e6aae994c0`.
+  - With the new forest loaded, the backend used 337 MB (166 MB before).
+
 ## 7. Changes from the original methodology document
 
 For the thesis text. Items 1-5 clarify or extend the methodology. Item 6
@@ -563,6 +630,10 @@ revises its recipe values.
 8. **Results vs targets.** The proposed targets (macro F1 ≥ 0.80, High
    recall ≥ 0.90) were not met. The thesis should report this together with
    the fact that every model beat both baselines.
+9. **Wider grids and a size limit (D-39, D-40, F-23).** Table 9, Table 12, the
+   test tables and the model description change: 67 configurations, an 80 MB
+   limit, and a 400-tree forest selected. State that the grids were widened
+   after the first run, from its validation results.
 
 ## 8. Pending items
 
@@ -597,3 +668,5 @@ revises its recipe values.
   `results/test_results.csv` has the SHA-256 in F-22.
 - **P-09** Update the thesis methodology and results chapters using the
   thesis draft doc and F-16 to F-22.
+- **P-10** Update thesis Table 9, Table 12, Tables 13 to 16, Figures 3 and 4,
+  and the model description and sizes, using D-39, D-40 and F-23.

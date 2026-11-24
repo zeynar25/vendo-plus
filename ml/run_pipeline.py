@@ -7,7 +7,7 @@ run_pipeline.py - run every step of the Vendo+ ML pipeline in order.
     4. labels.py            time to shortage -> Low / Medium / High
     5. features.py          the 11 features (noise seed 42)
     6. split.py             train / validation / test by date
-    7. train.py             13 fits, selection on validation only
+    7. train.py             67 fits, selection on validation only
     8. evaluate.py          kept models + 2 baselines, scored once on test
 
 Each step checks the fingerprint of the file the previous step wrote, so the
