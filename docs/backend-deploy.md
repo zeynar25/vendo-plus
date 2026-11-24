@@ -39,12 +39,17 @@ drink machine, which is no longer part of the project. Remove it and all its row
 
 Python 3.13 comes from `.python-version` at the repository root.
 
+The free instance has 512 MB of memory. Measured outside Render with the pinned library
+versions, the backend used 166 MB before loading the model and 337 MB with it
+(F-23 in `ml/docs/decision_log.md`). Render's own figure has not been measured; check
+the service's Metrics tab after the first deploy.
+
 ## 4. Check it
 
 | Check | Expected |
 | --- | --- |
 | `GET https://<service>.onrender.com/healthz` | `{"status": "ok", ...}` |
-| `GET /api/v1/system/check` | `"ready": true`, `model.algorithm` = `random_forest`, `model.sha256` starts with `768aaa18` |
+| `GET /api/v1/system/check` | `"ready": true`, `model.algorithm` = `random_forest`, `model.sha256` starts with `98e0efe8` |
 | `GET /api/v1/status` | The coffee machine, offline until the kit sends readings |
 
 Send one batch by hand (replace the key):

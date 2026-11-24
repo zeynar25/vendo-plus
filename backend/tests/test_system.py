@@ -18,7 +18,7 @@ def test_check_reports_database_model_and_every_channel(client, device_keys):
     client.post("/api/v1/readings", json=body, headers={"X-Device-Key": device_keys["coffee-01"]})
     check = client.get("/api/v1/system/check").json()
     assert check["ready"] is True and check["database"]["ok"] is True
-    assert check["model"]["algorithm"] == "random_forest" and check["model"]["sha256"].startswith("768aaa18")
+    assert check["model"]["algorithm"] == "random_forest" and check["model"]["sha256"].startswith("98e0efe8")
     coffee = next(m for m in check["machines"] if m["id"] == "coffee-01")
     channel = next(c for c in coffee["channels"] if c["code"] == "coffee")
     assert channel["value"] == pytest.approx(500.2) and channel["calibration_version"] == 1

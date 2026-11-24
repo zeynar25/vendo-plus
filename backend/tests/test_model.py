@@ -16,7 +16,7 @@ CASES = json.loads((Path(__file__).parent / "fixtures" / "model_cases.json").rea
 def test_selected_random_forest_loads_and_passes_its_hash_check():
     model = load_model(MODEL_DIR)
     assert model.algorithm == "random_forest"
-    assert model.sha256 == "768aaa18831a278afa4e9c82fee477667fdccaf7d12c94bd4e0b3ab1e60d664e"
+    assert model.sha256 == "98e0efe8b96cfe3e33f1508658d417c4670716de3e13d7aafccb87d68853f326"
     assert model.feature_columns[0] == "stock_ratio" and len(model.feature_columns) == 11
 
 
