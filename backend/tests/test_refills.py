@@ -126,14 +126,13 @@ def test_cancelling_a_refill_after_adding_stock_flags_it(client, kit, engine):
 
 
 def test_acknowledge_needs_a_medium_or_high_alert(client, kit, engine):
-    row_id = comp(engine, "row-a")["id"]
-    kit.send("row-a", 8.0, machine="snack-01")
-    assert client.post(f"/api/v1/compartments/{row_id}/acknowledge").status_code == 409
-    kit.send("row-a", 0.0, machine="snack-01")
-    response = client.post(f"/api/v1/compartments/{row_id}/acknowledge")
+    cid = comp(engine, "coffee")["id"]
+    kit.send("coffee", 800.0)                                   # Low: nothing to acknowledge
+    assert client.post(f"/api/v1/compartments/{cid}/acknowledge").status_code == 409
+    kit.send("coffee", 40.0)                                    # High
+    response = client.post(f"/api/v1/compartments/{cid}/acknowledge")
     assert response.status_code == 200 and response.json()["acknowledged_label"] == "High"
-    snack = next(m for m in client.get("/api/v1/status").json()["machines"] if m["id"] == "snack-01")
-    assert snack["compartments"][0]["acknowledged"] is True
+    assert coffee_state(client)["acknowledged"] is True
 
 
 def test_operator_key_is_required_when_configured(settings, engine, device_keys):

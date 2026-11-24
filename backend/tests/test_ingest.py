@@ -4,6 +4,7 @@ from sqlalchemy import select
 
 from app import tables
 from app.main import create_app
+from tests.helpers import add_legacy_machine
 
 
 @pytest.fixture
@@ -43,9 +44,9 @@ def test_valid_batch_is_stored(client, engine, device_keys):
     assert rows["chocolate"]["value"] is None and rows["chocolate"]["status"] == "unavailable"
 
 
-def test_missing_or_wrong_key_is_refused(client, device_keys):
+def test_missing_or_wrong_key_is_refused(client, engine, device_keys):
     assert client.post("/api/v1/readings", json=coffee_batch()).status_code == 401
-    wrong = {"X-Device-Key": device_keys["snack-01"]}  # a real key, but for the other machine
+    wrong = {"X-Device-Key": add_legacy_machine(engine)}  # a real key, but for another machine
     assert client.post("/api/v1/readings", json=coffee_batch(), headers=wrong).status_code == 401
 
 
@@ -94,12 +95,13 @@ def test_backend_rechecks_hopper_ranges(client, engine, device_keys, sent, expec
     assert (row["status"], row["value"]) == expected
 
 
-def test_coil_row_counts_are_whole_items(client, engine, device_keys):
+def test_a_leftover_coil_row_still_stores_whole_items(client, engine, device_keys):
+    key = add_legacy_machine(engine)
     body = {"machine_id": "snack-01", "session_id": "k", "sequence": 0,
             "readings": [{"compartment": "row-a", "value": 6.6, "status": "ok", "calibration_version": 1},
                          {"compartment": "row-b", "value": 12, "status": "ok", "calibration_version": 1}]}
     assert client.post("/api/v1/readings", json=body,
-                       headers={"X-Device-Key": device_keys["snack-01"]}).status_code == 201
+                       headers={"X-Device-Key": key}).status_code == 201
     rows = stored_readings(engine)
     assert rows["row-a"]["value"] == 7.0 and rows["row-a"]["status"] == "ok"
     assert rows["row-b"]["status"] == "over_capacity"

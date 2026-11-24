@@ -1,8 +1,9 @@
 """Decide each compartment's urgency: the model when allowed, otherwise the basic stock warning.
 
 Basic stock warning = the stock-only baseline of the paper: High at or below 5% of
-capacity, Medium at or below 20%, Low above. Coil rows always get it, because the
-model was trained and evaluated on the coffee hoppers only.
+capacity, Medium at or below 20%, Low above. A compartment that is not a hopper (only a
+coil row of the removed snack machine, if an old database still holds it) always gets it,
+because the model was trained and evaluated on the coffee hoppers only.
 """
 
 from dataclasses import dataclass

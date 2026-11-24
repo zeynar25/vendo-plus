@@ -27,7 +27,7 @@ def machine(status, machine_id):
 
 def test_before_any_reading_everything_is_offline_and_unlabelled(client):
     status = client.get("/api/v1/status").json()
-    assert [m["id"] for m in status["machines"]] == ["coffee-01", "snack-01"]
+    assert [m["id"] for m in status["machines"]] == ["coffee-01"]
     coffee = machine(status, "coffee-01")
     assert coffee["online"] is False and coffee["mode"] == "live"
     assert all(c["label"] is None and c["reason"] == "no_reading" and c["stale"] for c in coffee["compartments"])
@@ -47,34 +47,34 @@ def test_compartments_are_ranked_by_urgency_then_lowest_stock(client, device_key
 
 
 def test_reading_age_marks_stale_after_10_s_and_offline_after_15_s(client, engine):
-    row = comp(engine, "row-a")
+    hopper = comp(engine, "coffee")
     now = utcnow()
     with engine.begin() as conn:
-        conn.execute(tables.readings.insert().values(compartment_id=row["id"], t=now - timedelta(seconds=12),
-                     received_at=now - timedelta(seconds=12), value=8.0, status="ok", calibration_version=1))
-    snack = machine(client.get("/api/v1/status").json(), "snack-01")
-    row_a = next(c for c in snack["compartments"] if c["code"] == "row-a")
-    assert row_a["stale"] is True and snack["online"] is True
+        conn.execute(tables.readings.insert().values(compartment_id=hopper["id"], t=now - timedelta(seconds=12),
+                     received_at=now - timedelta(seconds=12), value=800.0, status="ok", calibration_version=1))
+    coffee = machine(client.get("/api/v1/status").json(), "coffee-01")
+    row = next(c for c in coffee["compartments"] if c["code"] == "coffee")
+    assert row["stale"] is True and coffee["online"] is True
     with engine.begin() as conn:
         conn.execute(tables.readings.update().values(received_at=now - timedelta(seconds=20)))
-    assert machine(client.get("/api/v1/status").json(), "snack-01")["online"] is False
+    assert machine(client.get("/api/v1/status").json(), "coffee-01")["online"] is False
 
 
 def test_an_acknowledged_alert_stays_hidden_until_the_urgency_changes(client, engine, device_keys):
-    post(client, device_keys, [{"compartment": "row-a", "value": 0.0, "status": "ok", "calibration_version": 1}],
-         machine="snack-01")
-    row = comp(engine, "row-a")
+    def coffee_row(status):
+        return next(c for c in machine(status, "coffee-01")["compartments"] if c["code"] == "coffee")
+
+    post(client, device_keys, [{"compartment": "coffee", "value": 40.0, "status": "ok", "calibration_version": 1}])
+    row = comp(engine, "coffee")
     with engine.begin() as conn:
         conn.execute(tables.acknowledgements.insert().values(compartment_id=row["id"], label="High",
                                                              acknowledged_at=utcnow()))
-    status = client.get("/api/v1/status").json()
-    assert machine(status, "snack-01")["compartments"][0]["acknowledged"] is True
-    post(client, device_keys, [{"compartment": "row-a", "value": 1.0, "status": "ok", "calibration_version": 1}],
-         machine="snack-01", seq=2)   # High -> Medium
-    post(client, device_keys, [{"compartment": "row-a", "value": 0.0, "status": "ok", "calibration_version": 1}],
-         machine="snack-01", seq=3)   # back to High: a new alert, not acknowledged
-    status = client.get("/api/v1/status").json()
-    assert machine(status, "snack-01")["compartments"][0]["acknowledged"] is False
+    assert coffee_row(client.get("/api/v1/status").json())["acknowledged"] is True
+    post(client, device_keys, [{"compartment": "coffee", "value": 150.0, "status": "ok", "calibration_version": 1}],
+         seq=2)   # High -> Medium
+    post(client, device_keys, [{"compartment": "coffee", "value": 40.0, "status": "ok", "calibration_version": 1}],
+         seq=3)   # back to High: a new alert, not acknowledged
+    assert coffee_row(client.get("/api/v1/status").json())["acknowledged"] is False
 
 
 def test_compartment_detail_shows_history_rates_and_recent_urgency(client, engine):

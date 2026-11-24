@@ -63,7 +63,7 @@ def recheck(compartment: dict, status: str, value: float | None) -> tuple[str, f
         if value > capacity:
             return "over_capacity", value
         return ("corrected_zero" if status == "corrected_zero" and value == 0 else "ok"), value
-    # coil row: whole items between 0 and capacity
+    # items (a coil row of the removed snack machine, if an old database still holds it)
     if value < 0:
         return "out_of_range", None
     value = float(round(value))

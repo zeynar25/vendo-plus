@@ -47,12 +47,36 @@ def seed(engine: Engine, timezone: str, rotate_keys: bool = False) -> dict[str, 
     return issued
 
 
+def remove_machine(engine: Engine, machine_id: str) -> dict[str, int]:
+    """Delete a machine that is no longer seeded, with every row that belongs to it.
+
+    Returns the number of rows deleted per table. A seeded machine is never removed.
+    """
+    if machine_id in {m["id"] for m in MACHINES}:
+        raise ValueError(f"{machine_id} is a seeded machine and cannot be removed")
+    t = tables
+    deleted: dict[str, int] = {}
+    with engine.begin() as conn:
+        if conn.execute(select(t.machines.c.id).where(t.machines.c.id == machine_id)).first() is None:
+            raise LookupError(f"{machine_id} is not in the database")
+        comp_ids = select(t.compartments.c.id).where(t.compartments.c.machine_id == machine_id)
+        for table in (t.predictions, t.acknowledgements, t.history_resets, t.readings, t.refills):
+            deleted[table.name] = conn.execute(table.delete().where(table.c.compartment_id.in_(comp_ids))).rowcount
+        for table in (t.replay_runs, t.batches, t.compartments):
+            deleted[table.name] = conn.execute(table.delete().where(table.c.machine_id == machine_id)).rowcount
+        deleted[t.machines.name] = conn.execute(t.machines.delete().where(t.machines.c.id == machine_id)).rowcount
+    return deleted
+
+
 def main(argv: list[str] | None = None) -> None:
     parser = argparse.ArgumentParser(prog="python -m app.cli")
     sub = parser.add_subparsers(dest="command", required=True)
     sub.add_parser("init-db", help="create missing tables")
     seed_cmd = sub.add_parser("seed", help="add the prototype machines and issue device keys")
     seed_cmd.add_argument("--rotate-keys", action="store_true")
+    remove_cmd = sub.add_parser("remove-machine", help="delete a machine that is no longer seeded, with all its rows")
+    remove_cmd.add_argument("machine_id")
+    remove_cmd.add_argument("--yes", action="store_true", help="confirm the deletion; it cannot be undone")
     args = parser.parse_args(argv)
 
     settings = Settings()
@@ -68,6 +92,15 @@ def main(argv: list[str] | None = None) -> None:
             print(f"{machine_id} device key: {key}")
         if issued:
             print("Copy each key into that kit's firmware now; only its hash is stored.")
+    elif args.command == "remove-machine":
+        if not args.yes:
+            raise SystemExit(f"This deletes {args.machine_id} and all its readings. Run again with --yes to confirm.")
+        try:
+            deleted = remove_machine(engine, args.machine_id)
+        except (ValueError, LookupError) as error:
+            raise SystemExit(str(error))
+        for name, count in deleted.items():
+            print(f"{name}: {count} row(s) deleted")
 
 
 if __name__ == "__main__":

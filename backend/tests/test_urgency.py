@@ -7,7 +7,7 @@ from sqlalchemy import func, select
 from app import tables
 from app.main import create_app
 from app.services.urgency import basic_label, evaluate, evaluate_and_log
-from tests.helpers import CASE, MODEL, TZ, add, comp, day_of_history
+from tests.helpers import CASE, MODEL, TZ, add, add_legacy_machine, comp, day_of_history
 
 
 def test_basic_warning_thresholds():
@@ -17,7 +17,8 @@ def test_basic_warning_thresholds():
 
 
 @pytest.mark.parametrize("items, label", [(0, "High"), (2, "Medium"), (3, "Low")])
-def test_coil_rows_always_get_the_basic_warning(engine, device_keys, items, label):
+def test_a_leftover_coil_row_always_gets_the_basic_warning(engine, device_keys, items, label):
+    add_legacy_machine(engine)
     row = comp(engine, "row-a")
     add(engine, row["id"], [(datetime(2026, 11, 19, 6, tzinfo=TZ), float(items), "ok")])
     with engine.connect() as conn:
@@ -79,14 +80,14 @@ def count_predictions(engine):
 
 
 def test_predictions_are_logged_on_change_and_at_least_hourly(engine, device_keys):
-    row = comp(engine, "row-a")
+    row = comp(engine, "milk")
     t0 = datetime(2026, 11, 19, 6, tzinfo=TZ)
-    add(engine, row["id"], [(t0, 5.0, "ok")])
+    add(engine, row["id"], [(t0, 500.0, "ok")])
     with engine.begin() as conn:
         evaluate_and_log(conn, row, TZ, MODEL, made_at=t0, interval_s=3600)
         evaluate_and_log(conn, row, TZ, MODEL, made_at=t0 + timedelta(seconds=5), interval_s=3600)
     assert count_predictions(engine) == 1                       # same urgency: not stored again
-    add(engine, row["id"], [(t0 + timedelta(seconds=10), 1.0, "ok")])
+    add(engine, row["id"], [(t0 + timedelta(seconds=10), 100.0, "ok")])
     with engine.begin() as conn:
         evaluate_and_log(conn, row, TZ, MODEL, made_at=t0 + timedelta(seconds=10), interval_s=3600)
     assert count_predictions(engine) == 2                       # Low -> Medium: stored

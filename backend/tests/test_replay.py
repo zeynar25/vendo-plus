@@ -7,7 +7,7 @@ from sqlalchemy import func, select
 from app import tables
 from app.main import create_app, replay_ticks
 from app.services.replay import load_sales_use
-from tests.helpers import CASE, TZ, comp
+from tests.helpers import CASE, TZ, add_legacy_machine, comp
 
 START = CASE["decision_time"]                      # a test-period hour from the offline dataset
 STOCK = {"coffee": 500.0, "milk": 500.0, "chocolate": 500.0} | {CASE["hopper"]: CASE["stock_g"]}
@@ -76,8 +76,13 @@ def test_stop_returns_to_live_mode(client):
     assert client.post("/api/v1/machines/coffee-01/replay/stop").status_code == 409
 
 
+def test_replay_is_for_the_coffee_machine_only(client, engine):
+    add_legacy_machine(engine)
+    body = {"source_start": START, "initial_stock_g": STOCK, "speed": 60}
+    assert client.post("/api/v1/machines/snack-01/replay/start", json=body).status_code == 422
+
+
 @pytest.mark.parametrize("path, overrides, code", [
-    ("/api/v1/machines/snack-01/replay/start", {}, 422),                         # coffee machine only
     ("/api/v1/machines/tea-99/replay/start", {}, 404),
     (None, {"source_start": "2024-03-01T12:00:00"}, 422),                        # no 24 h of sales before it
     (None, {"initial_stock_g": {"coffee": 100.0}}, 422),

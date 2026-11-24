@@ -21,9 +21,13 @@ export DATABASE_URL="<session pooler string>"
 python -m app.cli seed
 ```
 
-The command creates every table and the two machines, and prints one device key
-per machine. Copy each key into that kit's firmware secrets now; the database keeps
-only a hash. Running `seed` again prints nothing new; `seed --rotate-keys` issues new keys.
+The command creates every table and the coffee machine, and prints its device key.
+Copy the key into the kit's firmware secrets now; the database keeps only a hash.
+Running `seed` again prints nothing new; `seed --rotate-keys` issues a new key.
+
+If this database was seeded by an earlier version, it may still hold the snack and
+drink machine, which is no longer part of the project. Remove it and all its rows with
+`python -m app.cli remove-machine snack-01 --yes` (this cannot be undone).
 
 ## 3. Deploy on Render
 
@@ -41,7 +45,7 @@ Python 3.13 comes from `.python-version` at the repository root.
 | --- | --- |
 | `GET https://<service>.onrender.com/healthz` | `{"status": "ok", ...}` |
 | `GET /api/v1/system/check` | `"ready": true`, `model.algorithm` = `random_forest`, `model.sha256` starts with `768aaa18` |
-| `GET /api/v1/status` | Both machines, offline until a kit sends readings |
+| `GET /api/v1/status` | The coffee machine, offline until the kit sends readings |
 
 Send one batch by hand (replace the key):
 

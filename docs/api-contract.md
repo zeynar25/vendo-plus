@@ -1,6 +1,6 @@
 # Vendo+ API contract (v1)
 
-This is the agreement between the Wokwi kits, the backend, and the dashboard.
+This is the agreement between the Wokwi kit, the backend, and the dashboard.
 The firmware and the frontend follow this file; if the code and this file
 disagree, fix one of them in the same commit.
 
@@ -10,13 +10,19 @@ disagree, fix one of them in the same commit.
 
 ## Machines and compartments
 
-The seed command (`python -m app.cli seed`) creates these two machines and prints
-one device key per machine. Keys are stored only as SHA-256 hashes.
+The study covers one machine, the coffee machine. The seed command
+(`python -m app.cli seed`) creates it and prints its device key once. Keys are stored
+only as SHA-256 hashes.
 
 | machine_id | Kind | Compartment codes | Sensor | Unit | Capacity |
 | --- | --- | --- | --- | --- | --- |
 | `coffee-01` | coffee | `coffee`, `milk`, `chocolate` | load cell + HX711 | g | 1,000 |
-| `snack-01` | snack and drink | `row-a`, `row-b`, `row-c` | HC-SR04 | items | 10 |
+
+Earlier versions also seeded a snack and drink machine (`snack-01`, coil rows counted
+in items). It is no longer part of the project. If a database still holds it, delete it
+with `python -m app.cli remove-machine snack-01 --yes`. Until then the backend still
+accepts its readings as whole items and always gives its rows the basic warning with
+reason `coil_row`.
 
 ## 1. Kit to backend: `POST /api/v1/readings`
 
@@ -52,7 +58,7 @@ Body:
 | `sequence` | Integer of 0 or more, increasing by 1 per batch within a session. |
 | `device_time` | Optional. Stored for audit only; the server's receive time is the reading time. |
 | `readings` | 1 to 3 items, each compartment at most once. |
-| `value` | Grams for a hopper, items left for a coil row. `null` when `status` is `unavailable` or `out_of_range`. |
+| `value` | Grams. `null` when `status` is `unavailable` or `out_of_range`. |
 | `calibration_version` | Integer of 1 or more. A change starts a new 24-hour history for that compartment. |
 
 Status values (decided by the firmware, re-checked by the backend):
@@ -61,12 +67,12 @@ Status values (decided by the firmware, re-checked by the backend):
 | --- | --- | --- |
 | `ok` | Valid converted reading | Yes |
 | `corrected_zero` | Hopper read from -10 g to 0 g, sent as 0 | Yes |
-| `over_capacity` | Above capacity but not rejected (hopper over 1,000 g up to 1,050 g, coil row over 10 items) | No, stored only |
-| `unavailable` | Channel not ready, or no echo before the timeout | No |
-| `out_of_range` | Rejected reading (hopper below -10 g or above 1,050 g, distance outside the calibrated range) | No |
+| `over_capacity` | Above capacity but not rejected (over 1,000 g up to 1,050 g) | No, stored only |
+| `unavailable` | Channel not ready | No |
+| `out_of_range` | Rejected reading (below -10 g or above 1,050 g) | No |
 
 The backend applies the same ranges again and corrects the status if needed (for example,
-a hopper `ok` at -4 g is stored as `corrected_zero` 0 g, and a coil-row count is rounded to whole items).
+a hopper `ok` at -4 g is stored as `corrected_zero` 0 g).
 The firmware never sends an invalid reading as a valid zero. If a delivery fails,
 the next batch carries the newest state; old values are never replayed as current.
 
@@ -105,16 +111,16 @@ Read endpoints are open. Operator actions (every `POST` below) require the heade
 | --- | --- |
 | `label` | `Low`, `Medium`, `High`, or `null` while no valid reading exists or a refill is open |
 | `method` | `model` (Random Forest) or `basic` (basic stock warning) |
-| `reason` | Why the basic warning is used: `coil_row`, `history_short`, `history_gap`, `history_reset`, `refill_in_window`, `model_unavailable`; `null` for `model` |
+| `reason` | Why the basic warning is used: `history_short`, `history_gap`, `history_reset`, `refill_in_window`, `model_unavailable` (`coil_row` only for a leftover snack machine; see Machines and compartments); `null` for `model` |
 | (no label) | When `label` is `null`, `reason` is `no_reading`, `invalid_reading`, or `refill_open` |
 
 Basic stock warning (the stock-only baseline): High at or below 5% of capacity,
 Medium at or below 20%, Low above that. For a 1,000 g hopper that is 50 g and
-200 g; for a 10-item coil row it is 0 items and 2 items.
+200 g.
 
 The model is used only when all of these hold. Otherwise the basic warning is shown:
 
-1. The compartment is a hopper. Coil rows always get the basic warning, because the model was trained and evaluated on hoppers only.
+1. The compartment is a hopper (every seeded compartment is one; the model was trained and evaluated on hoppers only).
 2. The current reading is `ok` or `corrected_zero`, and no refill is open.
 3. The compartment has 24 hours of history in the current run (live, or one replay run), with no unreconciled reset in that time.
 4. For each window (1 h, 6 h, 24 h) there is a valid reading at or before the window start, at most 15 minutes before it, and the window start is not inside a refill.
@@ -133,10 +139,10 @@ added by refills that ended inside the window, floored at 0.
 
 ### Refill mode
 
-- Stable means three consecutive valid reports within 5 g (hopper) or with the same count (coil row).
+- Stable means three consecutive valid reports within 5 g.
 - `refill/start` needs a stable reading before; `refill/end` needs a stable reading after the start. If not yet stable, the call returns 409 with `{"detail": "not stable"}` and the dashboard retries after a few seconds.
 - Amount added = after - before, floored at 0.
-- A rise of more than 20 g (hopper) or of 1 item or more (coil row) outside refill mode is recorded as an unrecorded refill. It starts a new 24-hour history until an operator reconciles it.
+- A rise of more than 20 g outside refill mode is recorded as an unrecorded refill. It starts a new 24-hour history until an operator reconciles it.
 - Acknowledging an alert only hides it; it never changes the recorded stock.
 
 ### Replay mode (coffee machine only)
@@ -150,7 +156,7 @@ POST /api/v1/machines/coffee-01/replay/start
 ```
 
 - The backend first loads the 24 source hours before `source_start` as history (one reading per hopper every 5 source minutes), then advances the source clock by `speed` seconds per real second (60 = one source hour per real minute) and writes one simulated reading per hopper every 5 real seconds, with Gaussian noise of `noise_sd_g` (default 2 g).
-- `speed` is 1 to 180, so consecutive readings stay within 15 source minutes and the model can keep running. `source_start` must leave 24 hours of sales before it (2 March 2024 10:15 to 23 March 2025 18:11). Errors: 404 unknown machine, 409 a replay is already running, 422 anything else invalid (including the snack machine).
+- `speed` is 1 to 180, so consecutive readings stay within 15 source minutes and the model can keep running. `source_start` must leave 24 hours of sales before it (2 March 2024 10:15 to 23 March 2025 18:11). Errors: 404 unknown machine, 409 a replay is already running, 422 anything else invalid (including any machine other than the coffee machine).
 - A running replay continues after the service restarts, and ends by itself (`finished`) when the sales data runs out.
 - Every reading and prediction from replay carries the run id, and `/status` shows `mode: "replay"` with the source time, so a 2025 source timestamp is never shown as a current reading.
 - Live kit batches are still stored during replay but do not drive urgency until replay stops.

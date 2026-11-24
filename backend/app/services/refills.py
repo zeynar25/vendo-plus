@@ -1,9 +1,9 @@
 """Refill mode, unrecorded refills, and alert acknowledgement.
 
-Stable = three consecutive valid reports within 5 g (hopper) or with the same count
-(coil row). A rise of more than 20 g (hopper) or of 1 item or more (coil row) outside
-refill mode is an unrecorded refill: it starts a new 24-hour history until an
-operator reconciles it.
+Stable = three consecutive valid reports within 5 g. A rise of more than 20 g outside
+refill mode is an unrecorded refill: it starts a new 24-hour history until an operator
+reconciles it. (The item-count rules below apply only to a coil row of the removed snack
+machine, if an old database still holds it.)
 """
 
 from datetime import datetime
