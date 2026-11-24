@@ -15,6 +15,11 @@ machine's three ingredient hoppers, using the Kaggle Coffee Sales dataset
 | 7 Training + selection (validation only) | `train.py`            | `validation_results.csv`, `selection.json`, `models/`   |
 | 8 Baselines + single test evaluation     | `evaluate.py`         | `test_results.csv`, figures, `evaluation_report.json`   |
 
+After step 7, `python search_report.py` writes `search_range.csv` and
+`validation_sensitivity.png`: for each setting, the validation macro F1 at every
+value tried, with the algorithm's other settings held at the kept configuration.
+It reads validation results only.
+
 Other files:
 
 - `config.py`: all fixed settings, including the one recipe table.

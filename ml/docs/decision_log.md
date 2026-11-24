@@ -605,6 +605,28 @@ review were taken with the rules already approved, and are recorded here.
     (35.6 MB file); `test_results.csv`
     `f1fa85dc6c54579a8e16d7985cc7db2091e6d9b71ca01cd83415a4e6aae994c0`.
   - With the new forest loaded, the backend used 337 MB (166 MB before).
+- **F-24 Search range report** (`search_report.py`, validation results of F-23
+  only; each setting varied with the algorithm's other settings at the kept
+  configuration). Validation macro F1 at the lowest, kept and highest value:
+  - Logistic Regression C 0.0001 / 1 / 10,000: 0.4557 / 0.6970 / 0.6970. The
+    score rises to C = 1 and stays flat above it.
+  - Random Forest trees 100 / 400 / 400: 0.6978 / 0.6996. The kept value is
+    the highest tried; 200 trees scored 0.6994.
+  - Random Forest depth 8 / 16 / 32: 0.6932 / 0.6996 / 0.6995 (32 over the
+    limit). Depths 24 and 32 give forests of almost the same size (81.0 MB
+    each at 400 trees) and scores within 0.0001, so a deeper limit adds
+    little once the leaf size is 20.
+  - Random Forest leaf size 5 / 20 / 100: 0.6983 (over the limit) / 0.6996 /
+    0.6914.
+  - Gradient boosting leaf nodes 7 / 31 / 127: 0.6906 / 0.6953 / 0.6885.
+  - Gradient boosting learning rate 0.05 / 0.05 / 0.1: 0.6953 / 0.6929. The
+    kept value is the lowest tried.
+  - The selected forest also has the highest validation macro F1 of all 67
+    configurations, including the 8 over the size limit (best of those:
+    0.69957, 400 trees, depth 24, leaf 20), so the limit did not change the
+    selection. The five best Random Forests scored 0.6994 to 0.6996.
+  - `results/search_range.csv` SHA-256
+    `c61c9593acc1df8b508cd91bb79ade67fda257ad9b41f9a32afeef00de5e8a86`.
 
 ## 7. Changes from the original methodology document
 
@@ -634,6 +656,10 @@ revises its recipe values.
    test tables and the model description change: 67 configurations, an 80 MB
    limit, and a 400-tree forest selected. State that the grids were widened
    after the first run, from its validation results.
+10. **Search range (F-24).** The thesis reports each setting's lowest, kept
+    and highest value with its validation macro F1 (`search_range.csv`) and
+    the figure `validation_sensitivity.png`, and lists all 67 configurations
+    in an appendix.
 
 ## 8. Pending items
 

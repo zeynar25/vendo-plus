@@ -183,6 +183,10 @@ HIST_GRADIENT_BOOSTING_GRID = [
 # 512 MB free instance, and its compressed file under GitHub's 50 MiB warning.
 MAX_MODEL_MB = 80.0
 
+# search_report.py (validation only): each setting's range and its validation macro F1.
+SEARCH_RANGE_PATH = RESULTS_DIR / "search_range.csv"
+SENSITIVITY_FIGURE_PATH = RESULTS_DIR / "validation_sensitivity.png"
+
 TARGET_MACRO_F1 = 0.80
 TARGET_HIGH_RECALL = 0.90
 
