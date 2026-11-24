@@ -2,19 +2,31 @@
 
 import asyncio
 import logging
+import time
 from contextlib import asynccontextmanager, suppress
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 
 from app import __version__
+from app import tables
 from app.config import Settings
 from app.db import create_db_engine, init_db, utcnow
 from app.ml.model import load_model
-from app.routes import dashboard, ingest, operator, replay as replay_routes
+from app.routes import dashboard, ingest, operator, system
+from app.routes import replay as replay_routes
 from app.services import replay
 
 log = logging.getLogger("vendoplus")
+
+
+def log_event(app: FastAPI, kind: str, detail: dict) -> None:
+    """Record a service event (startup, first request). Never lets logging break the service."""
+    try:
+        with app.state.engine.begin() as conn:
+            conn.execute(tables.service_events.insert().values(kind=kind, at=utcnow(), detail=detail))
+    except Exception:  # noqa: BLE001
+        log.exception("could not record service event %s", kind)
 
 
 def replay_ticks(app: FastAPI) -> None:
@@ -52,6 +64,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         except Exception as exc:  # noqa: BLE001 - any failure must leave the API up
             app.state.model_error = f"{type(exc).__name__}: {exc}"
             log.error("Model not loaded: %s", app.state.model_error)
+        app.state.started_at, app.state.first_request_logged = utcnow(), False
+        log_event(app, "startup", {"version": __version__, "model_loaded": app.state.model is not None,
+                                   "model_error": app.state.model_error})
         # Running replays continue after a restart (for example after Render wakes the service).
         runner = asyncio.create_task(replay_loop(app)) if settings.enable_replay_runner else None
         yield
@@ -66,6 +81,22 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.add_middleware(CORSMiddleware, allow_origins=settings.cors_origin_list,
                        allow_methods=["*"], allow_headers=["*"])
 
+    @app.middleware("http")
+    async def timing(request: Request, call_next):
+        """Adds Server-Timing to every response and records the first real request after a (cold) start."""
+        started = time.perf_counter()
+        response = await call_next(request)
+        duration_ms = (time.perf_counter() - started) * 1000
+        response.headers["Server-Timing"] = f"app;dur={duration_ms:.1f}"
+        state = request.app.state
+        if request.url.path != "/healthz" and not getattr(state, "first_request_logged", True):
+            state.first_request_logged = True
+            since = (utcnow() - state.started_at).total_seconds()
+            await asyncio.to_thread(log_event, request.app, "first_request", {
+                "path": request.url.path, "seconds_after_startup": round(since, 2),
+                "duration_ms": round(duration_ms, 1)})
+        return response
+
     @app.get("/healthz", tags=["system"])
     def healthz() -> dict:
         """Liveness check for Render. Touches nothing else, so it answers even if the database is down."""
@@ -75,6 +106,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(dashboard.router)
     app.include_router(operator.router)
     app.include_router(replay_routes.router)
+    app.include_router(system.router)
     return app
 
 

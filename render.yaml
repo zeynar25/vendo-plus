@@ -1,5 +1,6 @@
 # Render Blueprint for the Vendo+ backend.
 # New + > Blueprint > pick this repo > Apply. Render reads this file from the repo root.
+# Secrets (sync: false) are typed in the Render dashboard when the Blueprint is applied.
 services:
   - type: web
     name: vendoplus-backend
@@ -9,3 +10,12 @@ services:
     buildCommand: pip install -r requirements.txt
     startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
     healthCheckPath: /healthz
+    envVars:
+      - key: DATABASE_URL          # Supabase "Session pooler" connection string (IPv4)
+        sync: false
+      - key: OPERATOR_KEY          # leave empty to allow dashboard actions without a key
+        sync: false
+      - key: TIMEZONE
+        value: Asia/Manila
+      - key: CORS_ORIGINS          # e.g. https://your-dashboard.onrender.com once the frontend is live
+        value: "*"
