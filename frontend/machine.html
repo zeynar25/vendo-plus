@@ -13,6 +13,7 @@
     <link rel="stylesheet" href="css/tokens.css" />
     <link rel="stylesheet" href="css/app.css" />
     <link rel="stylesheet" href="css/machine.css" />
+    <link rel="stylesheet" href="css/startup.css" />
   </head>
   <body>
     <header class="app-header">
@@ -186,8 +187,10 @@
     <script src="js/config.js"></script>
     <script src="js/machine/kit.js"></script>
     <script src="js/machine/page.js"></script>
+    <script src="js/startup.js"></script>
     <script>
       Vendo.machine.start();
+      Vendo.startup.start({ pageName: "mock machine" });
     </script>
   </body>
 </html>

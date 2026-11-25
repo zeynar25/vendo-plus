@@ -17,12 +17,12 @@ function setup(responder, config) {
 const json = (status, body) =>
   Promise.resolve({ ok: status < 400, status, statusText: "", json: () => Promise.resolve(body) });
 
-test("the backend is used by default, at the placeholder address", async () => {
+test("the backend is used by default, at the deployed Render address", async () => {
   const { V, calls } = setup(() => json(200, { server_time: "", machines: [] }));
   assert.equal(V.api, V.httpApi);
-  assert.match(V.config.API_BASE_URL, /\.invalid$/);
+  assert.equal(V.config.API_BASE_URL, "https://vendoplus-backend.onrender.com");
   await V.api.getStatus();
-  assert.equal(calls[0].url, "https://vendoplus-backend.example.invalid/api/v1/status");
+  assert.equal(calls[0].url, "https://vendoplus-backend.onrender.com/api/v1/status");
   assert.equal(calls[0].method, "GET");
 });
 

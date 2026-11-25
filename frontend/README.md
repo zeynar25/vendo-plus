@@ -8,8 +8,8 @@ Plain HTML, CSS, and JavaScript: no framework, no build step, nothing to install
 
 ## Run it
 
-Open `frontend/index.html` in a browser. To serve it instead (closer to how the
-backend will serve it):
+Open `frontend/index.html` in a browser. To serve it instead (closer to how
+Vercel serves it, see "Deploy on Vercel" below):
 
 ```bash
 cd frontend
@@ -30,37 +30,83 @@ python -m http.server 5173
 | `js/sample-data.js` | Static sample data shaped like the API responses, and the operator actions on it |
 | `js/config.js` | The backend address (`API_BASE_URL`) and the optional operator key |
 | `js/api.js` | Requests to the backend, and the line that shows whether it is reachable |
+| `js/startup.js`, `css/startup.css` | The start-up window that waits for a sleeping backend to wake (see below) |
 | `js/views/overview.js`, `css/overview.css` | Overview: the ranked compartment rows of each machine |
 | `js/views/detail.js`, `css/detail.css` | Compartment detail: 24-hour chart, consumption rate, calibration, recent alerts |
 | `js/views/refills.js`, `css/refills.css` | Refill and history: refill mode, stable readings, past refills, reconciling |
 | `machine.html`, `css/machine.css` | Mock coffee machine: the offline stand-in for the Wokwi kit (see below) |
 | `js/machine/kit.js` | The mock kit's logic: Table 3 recipes, simulated load cell readings, batches, sending |
 | `js/machine/page.js` | The mock machine page: drink buttons, brewing, pickup slot, hoppers, kit log |
-| `tests/` | Checks for the sample data, formatting, and the mock kit (`node --test "frontend/tests/*.test.js"` from the repository root, Node 18 or later) |
+| `tests/` | Checks for the sample data, formatting, the mock kit, and the start-up check (`node --test "frontend/tests/*.test.js"` from the repository root, Node 18 or later) |
 
 ## Backend
 
 The dashboard reads from the backend set in `js/config.js`:
 
 ```js
-API_BASE_URL: "https://vendoplus-backend.example.invalid", // placeholder
+API_BASE_URL: "https://vendoplus-backend.onrender.com", // the deployed backend
 OPERATOR_KEY: "",
 ```
 
-The address is a **placeholder** until the backend is deployed (`.invalid`
-never resolves), so for now the page shows "Can't reach the backend" and retries
-every 10 s. When the backend is live:
+- No trailing slash. For a demo without internet, use `"http://127.0.0.1:8000"`
+  with the backend running on the same computer (see the mock coffee machine
+  below).
+- The backend's `CORS_ORIGINS` setting must allow the page's address;
+  `render.yaml` sets `*`, which allows any address.
+- Leave `OPERATOR_KEY` empty unless the backend's `OPERATOR_KEY` is set. Never
+  commit a real key.
 
-1. Set `API_BASE_URL` to its Render URL, for example
-   `https://vendoplus-backend.onrender.com` (no trailing slash; locally
-   `http://127.0.0.1:8000`; `""` if the backend serves this page itself).
-2. Check that the backend's `CORS_ORIGINS` setting allows the page's address
-   (`render.yaml` sets `*`).
-3. Leave `OPERATOR_KEY` empty unless the backend's `OPERATOR_KEY` is set. Never
-   commit a real key.
+### The start-up window
 
-After 15 idle minutes Render's free tier sleeps; the first request then takes
-about a minute, and the page shows "Waking the backend" instead of an error.
+The backend runs on Render's free plan, which puts it to sleep after 15 minutes
+without traffic; the next request wakes it, which takes about a minute. So when
+`index.html` or `machine.html` opens, `js/startup.js` asks the backend's
+`/healthz` and then `/api/v1/system/check`:
+
+| What happens | What the window does |
+| --- | --- |
+| The backend answers within 0.8 s (already awake) | Nothing: it never appears |
+| No answer yet, or Render's loading page instead of JSON | "Waking up the server": a picture of the sleeping, waking, and ready server, a short explanation of the free plan, the time waited, and three steps. It asks again every 3 s and closes by itself once the backend answers |
+| Still no answer after 2.5 minutes | "Still waking up the server", with "Use sample data instead" first |
+| The backend answers but its check fails (database or model) | "The server is awake, but not ready", with the reason, "Check again", and "Open the dashboard anyway" |
+| The computer is offline | "You're offline"; checks again when the connection returns |
+| `API_BASE_URL` is the `.invalid` placeholder | "The backend address isn't set" |
+
+"Close and wait in the dashboard" only hides the window: it keeps checking, and
+the dashboard refreshes by itself once the backend is awake. While it waits, the
+line above the page says "Waking the backend" rather than "Can't reach the
+backend". With `?data=sample` there is no server to wake, so the window does not
+run.
+
+## Deploy on Vercel
+
+The dashboard is static files with no build step, so Vercel serves it as is,
+from a CDN, without the dashboard itself ever sleeping. Only the backend on
+Render sleeps, and the start-up window covers that.
+
+1. Make sure `js/config.js` has the backend's address (it does:
+   `https://vendoplus-backend.onrender.com`) and push the repository to GitHub.
+2. On vercel.com, choose **Add New → Project** and import the repository.
+3. In **Configure Project**:
+   - **Root Directory:** click **Edit** and choose `frontend`.
+   - **Framework Preset:** **Other**.
+   - **Build Command:** leave it empty. **Output Directory:** leave the default;
+     with "Other" and no `public` folder, Vercel serves the root directory,
+     which is `frontend`.
+   - No environment variables are needed: the page reads `js/config.js`.
+4. Click **Deploy**. The dashboard is at the project's address (for example
+   `https://<project>.vercel.app/`) and the mock coffee machine at
+   `/machine.html`.
+5. Every push to the deployed branch redeploys it.
+
+Optional: to let only the Vercel address call the backend, set `CORS_ORIGINS`
+to that address (no trailing slash; separate several addresses with commas, for
+example `https://<project>.vercel.app,http://localhost:5173`). Change it in
+`render.yaml` and push, rather than in the Render dashboard, because the
+Blueprint manages that value. Keeping `*` also works for the prototype.
+
+For a demo without internet, open the local files instead of the Vercel address
+and follow "Running it without internet" below.
 
 ## Sample data
 

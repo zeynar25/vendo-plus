@@ -15,6 +15,7 @@
     <link rel="stylesheet" href="css/overview.css" />
     <link rel="stylesheet" href="css/detail.css" />
     <link rel="stylesheet" href="css/refills.css" />
+    <link rel="stylesheet" href="css/startup.css" />
   </head>
   <body>
     <header class="app-header">
@@ -39,8 +40,10 @@
     <script src="js/views/detail.js"></script>
     <script src="js/views/refills.js"></script>
     <script src="js/app.js"></script>
+    <script src="js/startup.js"></script>
     <script>
       Vendo.start();
+      Vendo.startup.start({ pageName: "dashboard", sampleData: true });
     </script>
   </body>
 </html>

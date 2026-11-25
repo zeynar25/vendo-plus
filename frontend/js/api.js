@@ -22,6 +22,9 @@
   }
 
   function setConnection(state, error) {
+    // While the start-up check (startup.js) is still waiting for a sleeping server to
+    // wake, a failed request is part of waking up, not a sign that the server is gone.
+    if (state === "unreachable" && V.startup && V.startup.isWaking && V.startup.isWaking()) state = "waking";
     const changed = V.connection.state !== state;
     V.connection.state = state;
     V.connection.url = baseUrl();
