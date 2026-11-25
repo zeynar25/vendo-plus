@@ -183,3 +183,16 @@
 .offline strong {
   font: var(--body-strong);
 }
+
+.ack-notice {
+  padding: 10px 20px;
+  border-top: 1px solid var(--border);
+  background: var(--basic-bg);
+  color: var(--basic-fg);
+  font: 400 13px/18px var(--font);
+}
+
+.ov-gap {
+  display: block;
+  height: 8px;
+}

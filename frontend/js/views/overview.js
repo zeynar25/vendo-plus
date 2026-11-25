@@ -58,18 +58,38 @@
 
   function urgencyCell(c) {
     if (c.refill_open) return '<span class="pill pill--info">Refill in progress</span>';
+    if (c.acknowledged) {
+      return '<span class="pill pill--neutral"><span class="icon" aria-hidden="true">—</span>Acknowledged</span>';
+    }
     if (!c.label) return '<span class="ov-none">No urgency</span>';
     return V.urgencyPill(c.label);
   }
 
   function basisCell(c) {
+    if (c.acknowledged) {
+      return (
+        '<span class="ov-note">' + esc(c.label) +
+        " alert hidden from the overview until the urgency changes. Stock is unchanged.</span>"
+      );
+    }
     if (!c.label) return '<span class="ov-note">' + esc(V.NO_LABEL_REASON[c.reason] || "No urgency.") + "</span>";
     return V.basisTag(c.method) + '<span class="ov-note">' + esc(V.basisText(c.method, c.reason)) + "</span>";
   }
 
-  function actionCell(c) {
-    if (c.unrecorded_refill_id == null) return "";
+  /** Acknowledge hides a Medium or High alert; it never records a refill or changes the stock. */
+  function acknowledgeButton(c) {
+    if (c.acknowledged || (c.label !== "Medium" && c.label !== "High")) return "";
     return (
+      '<button type="button" class="btn" data-action="acknowledge" data-id="' + esc(c.id) + '" aria-label="Acknowledge the ' +
+      esc(c.label) + " alert for the " + esc(c.name) + '">Acknowledge</button>'
+    );
+  }
+
+  function actionCell(c) {
+    const ack = acknowledgeButton(c);
+    if (c.unrecorded_refill_id == null) return ack;
+    return (
+      ack + (ack ? '<span class="ov-gap"></span>' : "") +
       '<span class="ov-prompt">Unrecorded refill detected</span>' +
       '<button type="button" class="btn btn--outline btn--small" data-action="reconcile" data-reset="' +
       esc(c.unrecorded_refill_id) + '">Reconcile refill</button>'
@@ -119,7 +139,35 @@
     return '<tr class="notice" data-key="replay"><td colspan="6">' + V.replayBanner(m.replay) + "</td></tr>";
   });
 
+  /** One line above the rows while alerts are acknowledged (Figma frame 1b). */
+  V.overview.notices.push(function (m) {
+    const acked = m.compartments.filter(function (c) {
+      return c.acknowledged;
+    });
+    if (!acked.length) return "";
+    let text;
+    if (acked.length === 1) {
+      text =
+        "1 alert acknowledged: the " + acked[0].name + " stays listed with its stock, and its " + acked[0].label +
+        " alert is hidden until the urgency changes. No refill was recorded.";
+    } else {
+      const names = acked.map(function (c) {
+        return c.name;
+      });
+      text =
+        acked.length + " alerts acknowledged: the " + names.slice(0, -1).join(", ") + " and " + names[names.length - 1] +
+        " stay listed with their stock, and their alerts are hidden until the urgency changes. No refill was recorded.";
+    }
+    return '<tr class="notice" data-key="acknowledged"><td colspan="6"><div class="ack-notice">' + esc(text) + "</div></td></tr>";
+  });
+
   V.actions = V.actions || {};
+  V.actions.acknowledge = function (el) {
+    el.disabled = true;
+    V.state.actionError = null;
+    return V.api.acknowledge(Number(el.getAttribute("data-id"))).catch(V.showActionError);
+  };
+
   V.actions.reconcile = function (el) {
     el.disabled = true;
     V.state.actionError = null;
