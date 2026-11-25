@@ -7,6 +7,13 @@
  * that minute, requests wait or fail. This window explains the wait in plain words,
  * keeps asking the backend, and closes by itself once the backend answers and its
  * database and model are ready. If the backend answers quickly, it never appears.
+ *
+ * Without internet, the online backend can't be reached at all. If a backend is
+ * running on this computer (LOCAL_API_BASE_URL in config.js), the page switches to
+ * it for this visit and says so. To tell "no internet" apart from "Render is
+ * waking", it sends a no-cors request to the online backend: a waking Render
+ * service still answers (with a loading page) or holds the request, while with no
+ * internet the request fails at once. Only that failure leads to the switch.
  */
 (function (root) {
   "use strict";
@@ -19,6 +26,9 @@
     TYPICAL_MS: 60000, // Render: waking takes about a minute
     SLOW_AFTER_MS: 150000, // after 2.5 minutes, say that it is taking longer than usual
     CLOSE_AFTER_READY_MS: 1200,
+    REACH_TIMEOUT_MS: 8000, // a request still open after this means the internet works
+    LOCAL_TIMEOUT_MS: 4000, // a backend on this computer answers at once or not at all
+    LOCAL_NOTICE_MS: 7000, // how long the "using this computer" notice stays up
   });
 
   // ------------------------------------------------------------------ logic
@@ -83,6 +93,37 @@
     );
   };
 
+  /**
+   * Can the online backend be reached at the network level? A no-cors request needs
+   * no CORS headers and no JSON: it resolves for any answer, Render's loading page
+   * included, and fails only when there is no connection (no internet, DNS failure,
+   * nothing listening). Resolves "reachable", "unreachable", or "unknown" (still
+   * open after the timeout, which also means the connection works).
+   */
+  S.reach = function reach(base, fetchImpl, timeoutMs) {
+    const ctrl = typeof AbortController === "function" ? new AbortController() : null;
+    const timer = ctrl ? setTimeout(() => ctrl.abort(), timeoutMs || S.REACH_TIMEOUT_MS) : null;
+    return fetchImpl(base + "/healthz", { mode: "no-cors", cache: "no-store", signal: ctrl ? ctrl.signal : undefined })
+      .then(
+        () => "reachable",
+        (err) => (err && err.name === "AbortError" ? "unknown" : "unreachable")
+      )
+      .finally(() => {
+        if (timer) clearTimeout(timer);
+      });
+  };
+
+  /**
+   * Which backend to use now: "online" once it answers; "local" only when the online
+   * one can't be reached at all (or the browser is offline) and the local one answers;
+   * otherwise "wait".
+   */
+  S.choose = function choose(o) {
+    if (o.onlineAwake) return "online";
+    if ((o.offline || o.reach === "unreachable") && o.localAwake) return "local";
+    return "wait";
+  };
+
   /** What the system check says, in the window's terms. A missing check counts as ready. */
   S.summarize = function summarize(check) {
     if (!check) return { ready: true, known: false };
@@ -118,6 +159,12 @@
   let retryTimer = null;
   let attemptId = 0;
   let summary = null;
+  let local = ""; // LOCAL_API_BASE_URL, or "" when there is no fallback
+  let localAwake = false; // the backend on this computer answered in the last round
+  let unreachable = false; // the online backend failed at the network level in the last round
+  let mode = "online"; // which backend answered: "online" or "local"
+  let want = "online"; // which backend to ask: "local" after the button or ?backend=local
+  let reason = ""; // why the page uses this computer: offline, unreachable, button, address
 
   const esc = (s) =>
     String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
@@ -173,7 +220,7 @@
         "</svg>"
       );
     }
-    const kind = state === "problem" ? "warn" : "unknown";
+    const kind = state === "problem" ? "warn" : state === "local" ? "awake" : state === "localwait" ? "sleep" : "unknown";
     return (
       '<svg class="su-art su-art--single" viewBox="0 0 130 104" aria-hidden="true" focusable="false">' +
       server(kind, 20, true) +
@@ -210,6 +257,35 @@
     return "?" + params.toString() + (loc.hash || "");
   }
 
+  /** The address without ?backend=local: reloading it tries the online backend first again. */
+  S.onlineHref = function onlineHref() {
+    const loc = root.location || {};
+    const params = new URLSearchParams(loc.search || "");
+    params.delete("backend");
+    const q = params.toString();
+    return (loc.pathname || "") + (q ? "?" + q : "") + (loc.hash || "");
+  };
+
+  /** Leave the backend on this computer: reload, asking the online backend first. */
+  S.goOnline = function goOnline() {
+    const loc = root.location;
+    if (!loc) return;
+    const target = S.onlineHref();
+    if (target === loc.pathname + loc.search + loc.hash) loc.reload();
+    else loc.href = target;
+  };
+
+  /** "Presenting without internet?" with the switch button, while the online backend wakes. */
+  function localSection() {
+    if (!local) return "";
+    return (
+      '<div class="su-local"><p><b>Presenting without internet?</b> Use the backend running on this computer, at ' +
+      "<b>" + esc(S.hostOf(local)) + "</b>" + (localAwake ? " (it is answering)" : "") + ". Its data is separate from the " +
+      "online backend’s.</p>" +
+      '<button type="button" class="btn btn--outline" data-su="local">Use the backend on this computer</button></div>'
+    );
+  }
+
   function sampleButton(primary) {
     if (!opts.sampleData) return "";
     return '<a class="btn ' + (primary ? "btn--primary" : "btn--outline") + '" href="' + esc(sampleHref()) +
@@ -226,6 +302,7 @@
         "it to sleep, and the next visit wakes it up. This window closes by itself as soon as the server answers.</p>",
       timer: true,
       steps: true,
+      extra: localSection(),
       actions: '<button type="button" class="btn btn--outline" data-su="close">Close and wait in the ' +
         esc(opts.pageName) + "</button>" + sampleButton(false),
     }),
@@ -237,6 +314,7 @@
         "seconds. If you are presenting, you can carry on with sample data and come back later.</div>",
       timer: true,
       steps: true,
+      extra: localSection(),
       actions: sampleButton(true) + '<button type="button" class="btn btn--outline" data-su="close">Close and wait in the ' +
         esc(opts.pageName) + "</button>",
     }),
@@ -256,12 +334,51 @@
         title: "The server is awake, but not ready",
         lead: "It answered, but its own check found a problem:",
         body: '<ul class="su-list"><li>' + dbLine + "</li><li>" + modelLine + "</li></ul>" +
-          "<p>Check <code>DATABASE_URL</code> and the logs in the Render dashboard, then check again.</p>",
+          (mode === "local"
+            ? "<p>This is the backend on this computer. Check the terminal running <code>uvicorn</code>, then check again.</p>"
+            : "<p>Check <code>DATABASE_URL</code> and the logs in the Render dashboard, then check again.</p>"),
         steps: true,
         actions: '<button type="button" class="btn btn--primary" data-su="retry">Check again</button>' +
           '<button type="button" class="btn btn--outline" data-su="close">Open the ' + esc(opts.pageName) + " anyway</button>",
       };
     },
+    local: () => ({
+      title: "Using the backend on this computer",
+      lead:
+        {
+          offline: "This computer is offline, so the ",
+          unreachable: "The online backend can’t be reached, so the ",
+          button: "As you chose, the ",
+          address: "As the address asks (<code>backend=local</code>), the ",
+        }[reason] +
+        esc(opts.pageName) + " is using the backend running on this computer, at " + esc(S.hostOf(local)) + ".",
+      body: "<p>Its data is separate from the online backend’s. To go back to the online backend later, use " +
+        "<b>Go back to the online backend</b>" + (opts.sampleData ? " in the line under the header" : " in the Kit card") +
+        ", or reload the page without <code>backend=local</code>.</p>",
+      actions: '<button type="button" class="btn btn--primary" data-su="close">OK</button>',
+    }),
+    localwait: () => ({
+      title: "Switching to the backend on this computer",
+      lead: localAwake
+        ? "Connecting to " + esc(S.hostOf(local)) + "…"
+        : "Nothing answers at " + esc(S.hostOf(local)) + " yet.",
+      body:
+        "<p>Start the backend on this computer: open a terminal in the project, then run</p>" +
+        '<pre class="su-code">cd backend\n.venv\\Scripts\\activate\nuvicorn app.main:app</pre>' +
+        "<p>(on macOS or Linux: <code>source .venv/bin/activate</code>). This window checks every 3 seconds and " +
+        "connects as soon as it answers.</p>",
+      actions: '<button type="button" class="btn btn--outline" data-su="online">Back to the online backend</button>' +
+        sampleButton(false),
+    }),
+    nobackend: () => ({
+      title: "No internet, and no backend on this computer",
+      lead: "The online backend at " + esc(S.hostOf(base)) + " can’t be reached, and nothing answers at " +
+        esc(S.hostOf(local)) + ".",
+      body: "<p>To run the demo without internet, start the backend on this computer: in <code>backend</code>, run " +
+        "<code>uvicorn app.main:app</code> (see <code>frontend/README.md</code>). This window switches to it as soon " +
+        "as it answers.</p>",
+      actions: sampleButton(true) + '<button type="button" class="btn btn--outline" data-su="close">Close</button>',
+    }),
     offline: () => ({
       title: "You’re offline",
       lead: "This computer isn’t connected to the internet, so it can’t reach " + esc(S.hostOf(base)) + ".",
@@ -289,6 +406,7 @@
       (c.body || "") +
       (c.timer ? '<div class="su-progress" aria-hidden="true"><span></span></div><p class="su-time" aria-hidden="true"></p>' : "") +
       (c.steps ? steps() : "") +
+      (c.extra || "") +
       (c.actions ? '<div class="su-actions">' + c.actions + "</div>" : "");
     dlg.querySelector("#startup-status").textContent = c.title + ". " + c.lead.replace(/<[^>]+>/g, "");
     updateTimer();
@@ -366,41 +484,112 @@
     if (typeof opts.onReady === "function") opts.onReady();
   }
 
-  function attempt() {
-    if (closed) return;
-    const id = ++attemptId;
-    if (root.navigator && root.navigator.onLine === false) {
-      state = "offline";
+  /** Use the backend on this computer for the rest of this visit. */
+  function switchToLocal(why) {
+    mode = "local";
+    reason = why;
+    V.config.API_BASE_URL = local;
+    V.backend = { mode: "local", online: base, local: local, reason: why };
+    if (root.dispatchEvent && typeof root.CustomEvent === "function") {
+      root.dispatchEvent(new root.CustomEvent("vendo:backend", { detail: V.backend }));
+    }
+  }
+
+  /** A backend answered (online, or local after a switch). */
+  function answered(which, result, why) {
+    if (which === "local") switchToLocal(why);
+    summary = S.summarize(result.check);
+    awake = true;
+    backendReady();
+    if (hidden) {
+      close(); // the operator already closed the window; the page has refreshed
+      return;
+    }
+    if (!summary.ready) {
+      state = "problem";
       show();
       if (shown) render();
       return;
     }
-    S.probe(base, root.fetch.bind(root), S.REQUEST_TIMEOUT_MS).then((result) => {
-      if (closed || id !== attemptId) return;
-      if (!result.awake) {
-        if (state === "offline" || state === "checking" || state === "problem") setState(shown ? "waking" : "checking");
+    if (which === "local") {
+      state = "local"; // always say so, even when it was quick
+      show();
+      render();
+      retryTimer = setTimeout(close, S.LOCAL_NOTICE_MS);
+      return;
+    }
+    if (!shown) {
+      close(); // answered quickly: the server was already awake
+      return;
+    }
+    setState("ready");
+    retryTimer = setTimeout(close, S.CLOSE_AFTER_READY_MS);
+  }
+
+  function attempt() {
+    if (closed) return;
+    const id = ++attemptId;
+    const offline = Boolean(root.navigator && root.navigator.onLine === false);
+    const f = root.fetch.bind(root);
+    const current = () => !closed && !awake && id === attemptId;
+
+    if (want === "local") {
+      // The operator chose this computer (button or ?backend=local): ask only it.
+      S.probe(local, f, S.LOCAL_TIMEOUT_MS).then((loc) => {
+        if (!current()) return;
+        const was = localAwake;
+        localAwake = loc.awake;
+        if (loc.awake) {
+          answered("local", loc, reason || "button");
+          return;
+        }
+        if (state !== "localwait" || was !== localAwake) {
+          state = "localwait";
+          show();
+          render();
+        }
         retryTimer = setTimeout(attempt, S.RETRY_MS);
+      });
+      return;
+    }
+
+    if (offline && !local) {
+      state = "offline";
+      show();
+      if (shown) render();
+      return; // the "online" event starts the next attempt
+    }
+
+    // The online backend: wait for its answer (a waking Render service can hold it a minute).
+    const online = offline || S.isPlaceholder(base) ? Promise.resolve({ awake: false }) : S.probe(base, f, S.REQUEST_TIMEOUT_MS);
+    online.then((result) => {
+      if (!current()) return;
+      if (result.awake) answered("online", result);
+      else retryTimer = setTimeout(attempt, S.RETRY_MS);
+    });
+
+    // Meanwhile, without internet: is there a backend on this computer?
+    if (!local) return;
+    const reach = offline || S.isPlaceholder(base) ? Promise.resolve("unreachable") : S.reach(base, f, S.REACH_TIMEOUT_MS);
+    Promise.all([reach, S.probe(local, f, S.LOCAL_TIMEOUT_MS)]).then(([r, loc]) => {
+      if (!current()) return;
+      unreachable = r === "unreachable";
+      const wasAwake = localAwake;
+      localAwake = loc.awake;
+      if (S.choose({ offline: offline, reach: r, localAwake: localAwake }) === "local") {
+        attemptId += 1; // ignore the online attempt still in flight
+        answered("local", loc, offline ? "offline" : "unreachable");
         return;
       }
-      summary = S.summarize(result.check);
-      awake = true;
-      backendReady();
-      if (hidden) {
-        close(); // the operator already closed the window; the page has refreshed
-        return;
-      }
-      if (!summary.ready) {
-        state = "problem";
+      if (unreachable && !localAwake && state !== "nobackend") {
+        state = "nobackend";
         show();
-        if (shown) render();
-        return;
+        render();
+      } else if (!unreachable && state === "nobackend") {
+        setState("waking");
+      } else if (localAwake !== wasAwake) {
+        setState(state); // say whether the backend on this computer is answering
       }
-      if (!shown) {
-        close(); // answered quickly: the server was already awake
-        return;
-      }
-      setState("ready");
-      retryTimer = setTimeout(close, S.CLOSE_AFTER_READY_MS);
     });
   }
 
@@ -416,6 +605,26 @@
       const btn = e.target.closest("[data-su]");
       if (!btn) return;
       if (btn.getAttribute("data-su") === "close") (awake || state === "placeholder" ? close : dismiss)();
+      if (btn.getAttribute("data-su") === "close") return;
+      if (btn.getAttribute("data-su") === "local") {
+        want = "local";
+        reason = "button";
+        clearTimeout(retryTimer);
+        state = "localwait";
+        show();
+        render();
+        attempt(); // a new attempt also discards the online one still in flight
+        return;
+      }
+      if (btn.getAttribute("data-su") === "online") {
+        want = "online";
+        reason = "";
+        clearTimeout(retryTimer);
+        state = "waking";
+        render();
+        attempt();
+        return;
+      }
       if (btn.getAttribute("data-su") === "retry") {
         awake = false;
         state = "waking";
@@ -439,18 +648,25 @@
     opts = Object.assign({ pageName: "dashboard", sampleData: false }, options || {});
     if (V.sampleApi && V.api === V.sampleApi) return; // sample data: no server to wake
     base = S.baseUrl(V.config);
+    local = S.baseUrl({ API_BASE_URL: V.config && V.config.LOCAL_API_BASE_URL });
+    if (local === base) local = ""; // already using this computer: nothing to fall back to
+    V.backend = { mode: "online", online: base, local: local };
     startedAt = Date.now();
     started = true;
     build();
-    if (S.isPlaceholder(base)) {
+    if (local && new URLSearchParams((root.location && root.location.search) || "").get("backend") === "local") {
+      want = "local"; // start on this computer straight away
+      reason = "address";
+    }
+    if (S.isPlaceholder(base) && !local) {
       state = "placeholder";
       show();
       return;
     }
     root.addEventListener("online", () => {
-      if (!closed && state === "offline") {
+      if (!closed && !awake && (state === "offline" || state === "nobackend")) {
         state = "waking";
-        render();
+        if (shown) render();
         attempt();
       }
     });

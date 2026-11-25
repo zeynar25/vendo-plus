@@ -41,20 +41,50 @@ python -m http.server 5173
 
 ## Backend
 
-The dashboard reads from the backend set in `js/config.js`:
+The dashboard reads from the backends set in `js/config.js`:
 
 ```js
 API_BASE_URL: "https://vendoplus-backend.onrender.com", // the deployed backend
+LOCAL_API_BASE_URL: "http://127.0.0.1:8000",              // the backend on this computer
 OPERATOR_KEY: "",
 ```
 
-- No trailing slash. For a demo without internet, use `"http://127.0.0.1:8000"`
-  with the backend running on the same computer (see the mock coffee machine
-  below).
+- No trailing slash. The page always asks the online backend first.
+  `LOCAL_API_BASE_URL` is the fallback for a demo without internet (see "Online
+  first, then this computer" below); set it to `""` to turn the fallback off.
 - The backend's `CORS_ORIGINS` setting must allow the page's address;
   `render.yaml` sets `*`, which allows any address.
 - Leave `OPERATOR_KEY` empty unless the backend's `OPERATOR_KEY` is set. Never
   commit a real key.
+
+### Online first, then this computer
+
+The page uses one backend at a time, and says which:
+
+| Situation | What the page does |
+| --- | --- |
+| The online backend answers (even after waking for a minute) | Uses it |
+| The browser reports no network, or the online backend can't be reached at all, and the backend on this computer answers | Switches to this computer by itself and says why |
+| You press **Use the backend on this computer** in the start-up window | Switches to this computer; if it isn't running yet, shows the command to start it and connects as soon as it answers |
+| The address has `?backend=local` (for example `index.html?backend=local`) | Starts on this computer straight away |
+
+A sleeping Render service is never mistaken for "no internet": while it wakes it
+still answers (with a loading page) or holds the request. The page tells the two
+apart with a plain `no-cors` request to the online backend, which fails only when
+nothing on the internet can be reached. So a normal one-minute wake-up never
+switches to this computer, even when a local backend is running.
+
+While the page uses this computer, the line under the header says so ("Its data is
+separate from the online backend's") with **Go back to the online backend**, which
+reloads the page asking the online backend first; on the mock machine the same
+button is in the Kit card. The two databases are separate: readings, refills, and
+device keys on one are not on the other. The mock machine therefore keeps one
+device key per backend address and picks the right one after a switch.
+
+On the Vercel page, switching to this computer needs the backend running on the
+same laptop as the browser; the browser may ask whether the site may reach devices
+on your local network. Without internet the Vercel page can't load at all, so for
+an offline demo open the local `frontend/index.html` instead.
 
 ### The start-up window
 
@@ -71,6 +101,7 @@ without traffic; the next request wakes it, which takes about a minute. So when
 | The backend answers but its check fails (database or model) | "The server is awake, but not ready", with the reason, "Check again", and "Open the dashboard anyway" |
 | The computer is offline | "You're offline"; checks again when the connection returns |
 | `API_BASE_URL` is the `.invalid` placeholder | "The backend address isn't set" |
+| No internet and nothing answers on this computer | "No internet, and no backend on this computer", with the command to start it |
 
 "Close and wait in the dashboard" only hides the window: it keeps checking, and
 the dashboard refreshes by itself once the backend is awake. While it waits, the
@@ -149,28 +180,44 @@ it is open.
 
 ### Running it without internet
 
-Without internet the backend on Render cannot be reached either, so run the
-backend on the presenting laptop. Install its requirements while you still have
-internet (see `backend/README.md`), then:
+Without internet the backend on Render cannot be reached either, so the page
+switches to the backend on the presenting laptop (see "Online first, then this
+computer" above). Prepare the laptop while you still have internet:
 
 ```bash
 cd backend
-python -m app.cli seed            # first run: prints the coffee-01 device key (local SQLite)
-uvicorn app.main:app              # http://127.0.0.1:8000
+python -m pip install -r requirements-dev.txt   # in backend/.venv
+python -m app.cli seed            # once, without DATABASE_URL set: prints the local coffee-01 key
+uvicorn app.main:app              # http://127.0.0.1:8000; stop with Ctrl+C
 ```
 
-1. In `js/config.js`, set `API_BASE_URL` to `"http://127.0.0.1:8000"`. The
-   dashboard and the mock machine both use it.
-2. Open `machine.html`, paste the device key from the seed command, and press
-   **Save**. The mode changes from "Serial only" to "Sending", and each batch in
-   the log shows `201 Accepted`.
-3. Open `index.html` in a second window to show the dashboard.
+Write down the local `coffee-01` key: it is not the same as the Supabase one. Then
+test once with Wi-Fi off.
+
+On the day, without internet:
+
+1. Start the backend: in `backend/`, activate `.venv` and run `uvicorn app.main:app`.
+2. Open the local `frontend/index.html` and `frontend/machine.html` (not the
+   Vercel address). Each says "Using the backend on this computer". If you open
+   them before starting the backend, the start-up window shows the command and
+   connects as soon as the backend answers.
+3. On the machine page, paste the local device key and press **Save**. The mode
+   changes from "Serial only" to "Sending", and each batch shows `201 Accepted`.
+4. A fresh local database has no history, and the model needs 24 hours of it, so
+   live mock-machine readings show the basic stock warning. To show model
+   urgencies, start replay mode: open `http://127.0.0.1:8000/docs`,
+   **POST /api/v1/machines/{machine_id}/replay/start** with `coffee-01` and, for
+   example, this body (it stores 24 hours of history first, then plays one hour
+   of sales per minute):
+   ```json
+   {"source_start": "2025-01-15T07:00:00", "initial_stock_g": {"coffee": 150, "milk": 150, "chocolate": 100}, "speed": 60}
+   ```
 
 Keep the machine page in its own window rather than a background tab: browsers
-slow down timers in hidden tabs. The key is saved only in that browser
-(`localStorage`); never commit it. The local database is separate from Supabase,
-so if the seed command says the machines already exist and the key is lost,
-`python -m app.cli seed --rotate-keys` issues a new local key.
+slow down timers in hidden tabs. Keys are saved only in that browser
+(`localStorage`), one per backend address; never commit them. If the local key is
+lost, `python -m app.cli seed --rotate-keys` (again without `DATABASE_URL`) issues
+a new one.
 
 Until a key is entered, or while `API_BASE_URL` is the placeholder, the kit runs
 serial-only like the public Wokwi project: batches appear in the log but are not

@@ -92,6 +92,9 @@
 
   /** Runs `handler` when an element with data-action="<name>" is clicked. */
   V.actions = V.actions || {};
+  V.actions["backend-online"] = function () {
+    if (V.startup && V.startup.goOnline) V.startup.goOnline();
+  };
   function onClick(event) {
     const el = event.target.closest("[data-action]");
     if (!el || el.disabled || el.getAttribute("aria-disabled") === "true") return;
@@ -104,6 +107,9 @@
   V.start = function start() {
     root.addEventListener("hashchange", navigate);
     document.getElementById("view").addEventListener("click", onClick);
+    // The connection line sits above the view; its "Go back to the online backend" button uses the same actions.
+    const line = document.getElementById("connection");
+    if (line) line.addEventListener("click", onClick);
     navigate();
   };
 })(typeof window !== "undefined" ? window : globalThis);

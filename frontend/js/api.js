@@ -132,6 +132,12 @@
       html =
         '<div class="conn conn--info">Showing sample data, not the backend. Remove <code>data=sample</code> from the ' +
         "address to use the backend.</div>";
+    } else if (V.backend && V.backend.mode === "local" && V.connection.state !== "unreachable") {
+      const why = { offline: "No internet: u", unreachable: "The online backend can’t be reached: u" }[V.backend.reason] || "U";
+      html =
+        '<div class="conn conn--info">' + why + "sing the backend on this computer (<code>" + esc(V.backend.local) +
+        "</code>). Its data is separate from the online backend’s. " +
+        '<button type="button" class="linklike" data-action="backend-online">Go back to the online backend</button></div>';
     } else if (V.connection.state === "waking") {
       html =
         '<div class="conn conn--info"><span class="spinner" aria-hidden="true"></span>Waking the backend. ' +

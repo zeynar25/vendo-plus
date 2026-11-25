@@ -82,3 +82,45 @@ test("awake but not ready: the window reports the database or the model", async 
   assert.equal(noCheck.awake, true);
   assert.equal(s.summarize(noCheck.check).ready, true);
 });
+
+test("reachability: any answer counts, only a network failure does not", async () => {
+  const s = S();
+  const seen = [];
+  const answer = (url, opts) => {
+    seen.push(opts.mode);
+    return Promise.resolve({ type: "opaque", status: 0 }); // e.g. Render's loading page, no CORS headers
+  };
+  assert.equal(await s.reach("https://b.example", answer, 1000), "reachable");
+  assert.deepEqual(seen, ["no-cors"]);
+  assert.equal(await s.reach("https://b.example", () => Promise.reject(new TypeError("Failed to fetch")), 1000), "unreachable");
+  const held = (url, opts) =>
+    new Promise((resolve, reject) =>
+      opts.signal.addEventListener("abort", () => reject(Object.assign(new Error("aborted"), { name: "AbortError" })))
+    );
+  assert.equal(await s.reach("https://b.example", held, 30), "unknown"); // still open: the connection works
+});
+
+test("the switch to this computer happens only when the online backend can't be reached", () => {
+  const s = S();
+  const c = (o) => s.choose(o);
+  assert.equal(c({ onlineAwake: true, reach: "unreachable", localAwake: true }), "online"); // online answered: use it
+  assert.equal(c({ reach: "unreachable", localAwake: true }), "local"); // no internet, local runs
+  assert.equal(c({ offline: true, reach: "unreachable", localAwake: true }), "local");
+  assert.equal(c({ reach: "reachable", localAwake: true }), "wait"); // Render is waking: don't switch
+  assert.equal(c({ reach: "unknown", localAwake: true }), "wait"); // request held open: still waking
+  assert.equal(c({ reach: "unreachable", localAwake: false }), "wait"); // nothing to switch to yet
+});
+
+test("the local fallback address is set by default", () => {
+  const V = load(["config.js"]);
+  assert.equal(V.config.LOCAL_API_BASE_URL, "http://127.0.0.1:8000");
+});
+
+test("going back to the online backend drops only backend=local from the address", () => {
+  const V = load(["config.js", "startup.js"], {
+    location: { pathname: "/index.html", search: "?backend=local&data=x", hash: "#/overview" },
+  });
+  assert.equal(V.startup.onlineHref(), "/index.html?data=x#/overview");
+  const W = load(["config.js", "startup.js"], { location: { pathname: "/machine.html", search: "?backend=local", hash: "" } });
+  assert.equal(W.startup.onlineHref(), "/machine.html");
+});

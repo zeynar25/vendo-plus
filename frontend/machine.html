@@ -120,7 +120,12 @@
             </div>
             <div>
               <dt>Backend</dt>
-              <dd><code id="kit-target"></code></dd>
+              <dd>
+                <code id="kit-target"></code>
+                <button type="button" class="linklike" id="kit-back" data-action="backend-online" hidden>
+                  Go back to the online backend
+                </button>
+              </dd>
             </div>
             <div>
               <dt>Endpoint</dt>
@@ -136,7 +141,7 @@
             </div>
           </dl>
           <form class="kit-key" id="key-form" autocomplete="off">
-            <label for="device-key">Device key for coffee-01</label>
+            <label for="device-key" id="key-label">Device key for coffee-01</label>
             <div class="kit-key-row">
               <input
                 type="password"

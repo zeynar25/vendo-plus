@@ -9,7 +9,7 @@
   const K = V.kit;
 
   const STORE_HOPPERS = "vendoplus.mockMachine.hoppers";
-  const STORE_KEY = "vendoplus.mockMachine.deviceKey";
+  const STORE_KEY = "vendoplus.mockMachine.deviceKey"; // one key per backend address: each database issues its own
   const DEFAULT_MASS = { coffee: 640, milk: 180, chocolate: 420 }; // arbitrary demo loads
   const LOAD_MAX_G = 1100; // the load control goes past capacity so the flagged states can be shown
   const DISPENSE_MS = 1500;
@@ -73,6 +73,35 @@
     } catch (e) {
       /* ignore */
     }
+  }
+
+  /** Where the key for the current backend is kept: the online and local databases issue different keys. */
+  function keyName() {
+    return STORE_KEY + ":" + K.target(V.config.API_BASE_URL, "x").base;
+  }
+
+  function loadKey() {
+    return loadItem(keyName()) || "";
+  }
+
+  function onBackendSwitch(e) {
+    state.deviceKey = loadKey();
+    const d = (e && e.detail) || {};
+    const where = d.local || V.config.API_BASE_URL;
+    const why = {
+      offline: "This computer is offline, so batches",
+      unreachable: "The online backend can’t be reached, so batches",
+      button: "As chosen in the start-up window, batches",
+      address: "As the address asks (backend=local), batches",
+    }[d.reason] || "Batches";
+    logEvent(
+      "warn",
+      "Kit",
+      "Backend switched",
+      why + " now go to the backend on this computer (" + where + "). " +
+        (state.deviceKey ? "Using the device key saved for it." : "Enter the device key from this computer’s seed command.")
+    );
+    renderKit();
   }
 
   function saveHoppers() {
@@ -250,7 +279,10 @@
       '<span class="pill pill--small pill--' + m.tone + '">' + V.esc(m.text) + "</span>" +
       (m.note ? ' <span class="kit-note">' + V.esc(m.note) + "</span>" : "");
     const base = K.target(V.config.API_BASE_URL, "x").base;
-    $("kit-target").textContent = base || "(same address as this page)";
+    const onLocal = V.backend && V.backend.mode === "local";
+    $("kit-target").textContent = (base || "(same address as this page)") + (onLocal ? " (this computer)" : "");
+    $("kit-back").hidden = !onLocal;
+    $("key-label").textContent = "Device key for coffee-01 on " + (base ? base.replace(/^https?:\/\//, "") : "this page’s address");
     $("kit-session").textContent = state.session && state.power ? state.session.id : "-";
     $("kit-next").textContent =
       state.power && state.session
@@ -260,8 +292,8 @@
     power.setAttribute("aria-checked", String(state.power));
     $("forget-key").hidden = !state.deviceKey;
     $("key-hint").textContent = state.deviceKey
-      ? "A key is saved in this browser only. Never commit it to the repository or a public Wokwi project."
-      : "Saved in this browser only. Never commit a real key.";
+      ? "A key for this backend is saved in this browser only. Never commit it to the repository or a public Wokwi project."
+      : "Saved in this browser only, one per backend. Never commit a real key.";
   }
 
   function renderCounts() {
@@ -575,6 +607,7 @@
     else if (action === "forget-key") forgetKey();
     else if (action === "clear-log") $("log").innerHTML = "";
     else if (action === "filter") setFilter(el);
+    else if (action === "backend-online" && V.startup) V.startup.goOnline();
   }
 
   function setFilter(el) {
@@ -588,7 +621,7 @@
     const key = input.value.trim();
     if (!key) return;
     state.deviceKey = key;
-    saveItem(STORE_KEY, key);
+    saveItem(keyName(), key);
     input.value = "";
     const m = modeInfo();
     logEvent("info", "Kit", "Key saved", "Device key saved in this browser. Mode: " + m.text.toLowerCase() + "." + (m.note ? " " + m.note : ""));
@@ -597,7 +630,7 @@
 
   function forgetKey() {
     state.deviceKey = "";
-    saveItem(STORE_KEY, null);
+    saveItem(keyName(), null);
     logEvent("info", "Kit", "Key removed", "Device key removed from this browser. Batches are only logged now.");
     renderKit();
     $("device-key").focus();
@@ -618,7 +651,11 @@
           typeof m === "number" && Number.isFinite(m) && m >= 0 && m <= LOAD_MAX_G ? m : DEFAULT_MASS[h.code];
         state.connected[h.code] = true;
       });
-      state.deviceKey = loadItem(STORE_KEY) || "";
+      const legacy = loadItem(STORE_KEY); // a key saved before keys were kept per backend
+      if (legacy && !loadKey()) saveItem(keyName(), legacy);
+      if (legacy) saveItem(STORE_KEY, null);
+      state.deviceKey = loadKey();
+      root.addEventListener("vendo:backend", onBackendSwitch);
 
       $("hoppers").innerHTML = K.HOPPERS.map(hopperHtml).join("");
       $("drinks").innerHTML = K.DRINKS.map(drinkHtml).join("");

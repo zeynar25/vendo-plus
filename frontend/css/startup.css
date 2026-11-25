@@ -25,8 +25,13 @@
 
 .startup--problem .su-art-wrap,
 .startup--offline .su-art-wrap,
+.startup--nobackend .su-art-wrap,
 .startup--placeholder .su-art-wrap {
   background: var(--bg);
+}
+
+.startup--local .su-art-wrap {
+  background: var(--low-bg);
 }
 
 .su-art {
@@ -309,6 +314,42 @@
 
 @keyframes su-spin {
   to { transform: rotate(360deg); }
+}
+
+.su-local {
+  margin: 14px 0 0;
+  padding: 12px 14px;
+  border: 1px dashed var(--primary);
+  border-radius: 10px;
+  background: var(--info-bg);
+}
+
+.startup .su-local p {
+  margin: 0 0 10px;
+  color: var(--text);
+}
+
+.su-code {
+  margin: 0 0 10px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: #0c111d;
+  color: #d1fadf;
+  font: 500 13px/20px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  white-space: pre;
+  overflow-x: auto;
+}
+
+/* "Go back to the online backend" in the connection line and the Kit card */
+.linklike {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--primary);
+  font: inherit;
+  font-weight: 600;
+  text-decoration: underline;
+  cursor: pointer;
 }
 
 .su-actions {
