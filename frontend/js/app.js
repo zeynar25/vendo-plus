@@ -1,8 +1,10 @@
 /*
  * The dashboard shell: hash routes, the header navigation, and the refresh loop.
  *   #/overview            ranked overview of the coffee machine
- *   #/compartment/<id>    compartment detail
- *   #/refills/<id>        refill mode and refill history
+ *   #/compartment         asks which hopper, then shows its detail
+ *   #/compartment/<id>    compartment detail of that hopper
+ *   #/refills             asks which hopper, then shows its refills
+ *   #/refills/<id>        refill mode and refill history of that hopper
  * Each view registers itself in Vendo.views with load() and render().
  */
 (function (root) {
@@ -31,12 +33,15 @@
     return { name: name, id: Number.isFinite(id) ? id : null };
   }
 
-  /** Points the detail and refill tabs at the selected compartment. */
+  /**
+   * The header tabs never carry a hopper id, so the detail and refill tabs
+   * always ask which hopper first. Links to one hopper (the overview's names,
+   * the chooser, the hopper switcher) carry its id and open it directly.
+   */
   V.updateNav = function updateNav() {
-    const sel = V.state.selectedId;
     document.querySelectorAll(".app-nav a").forEach(function (a) {
       const name = a.getAttribute("data-route");
-      a.setAttribute("href", name === "overview" || sel == null ? "#/" + name : "#/" + name + "/" + sel);
+      a.setAttribute("href", "#/" + name);
       if (current && current.name === name) a.setAttribute("aria-current", "page");
       else a.removeAttribute("aria-current");
     });

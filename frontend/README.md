@@ -32,12 +32,35 @@ python -m http.server 5173
 | `js/api.js` | Requests to the backend, and the line that shows whether it is reachable |
 | `js/startup.js`, `css/startup.css` | The start-up window that waits for a sleeping backend to wake (see below) |
 | `js/views/overview.js`, `css/overview.css` | Overview: the ranked compartment rows of each machine |
+| `js/views/hoppers.js`, `css/hoppers.css` | Choosing a hopper: the chooser on the detail and refill pages, and the hopper switcher |
 | `js/views/detail.js`, `css/detail.css` | Compartment detail: 24-hour chart, consumption rate, calibration, recent alerts |
 | `js/views/refills.js`, `css/refills.css` | Refill and history: refill mode, stable readings, past refills, reconciling |
 | `machine.html`, `css/machine.css` | Mock coffee machine: the offline stand-in for the Wokwi kit (see below) |
 | `js/machine/kit.js` | The mock kit's logic: Table 3 recipes, simulated load cell readings, batches, sending |
 | `js/machine/page.js` | The mock machine page: drink buttons, brewing, pickup slot, hoppers, kit log |
-| `tests/` | Checks for the sample data, formatting, the mock kit, and the start-up check (`node --test "frontend/tests/*.test.js"` from the repository root, Node 18 or later) |
+| `tests/` | Checks for the sample data, formatting, the mock kit, the start-up check, and the hopper chooser (`node --test "frontend/tests/*.test.js"` from the repository root, Node 18 or later) |
+
+## Pages and choosing a hopper
+
+| Address | What it shows |
+| --- | --- |
+| `#/overview` | Every hopper, ranked from High to Low urgency |
+| `#/compartment` | "Which hopper?" first, then that hopper's detail |
+| `#/compartment/<id>` | The detail of hopper `<id>` straight away |
+| `#/refills` | "Which hopper?" first, then that hopper's refill mode and history |
+| `#/refills/<id>` | The refill mode and history of hopper `<id>` straight away |
+
+- The **Compartment detail** and **Refill and history** tabs in the header
+  always open the chooser: one card per hopper with its stock, urgency, and
+  reading age. The card of the hopper opened last is marked "Last viewed".
+- Clicking a hopper's name on the overview skips the chooser and opens that
+  hopper's detail.
+- On a hopper's page, the **Hopper** switcher in the title row (Coffee, Milk,
+  Chocolate) changes hopper and stays on the same page.
+- Hoppers keep one fixed order (coffee, milk, chocolate) in the chooser and the
+  switcher, so nothing moves under the pointer while the page refreshes.
+- An address with a hopper id that does not exist shows the chooser with a
+  note, instead of silently showing another hopper.
 
 ## Backend
 

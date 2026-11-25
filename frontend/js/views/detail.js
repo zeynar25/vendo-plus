@@ -11,24 +11,19 @@
   const fmt = V.fmt;
   const HOUR = 3600 * 1000;
 
-  /** Loads the status, then picks the requested or selected compartment (default: the most urgent). */
+  /**
+   * Loads the status and, when the address names a hopper, that hopper's data.
+   * Without a hopper id (or with one that does not exist) it returns
+   * { status, entry: null } and the page shows the hopper chooser instead.
+   */
   V.loadWithCompartment = function loadWithCompartment(route, loadOne) {
     return V.api.getStatus().then(function (status) {
-      const machines = status.machines || [];
-      const all = [];
-      machines.forEach(function (m) {
-        m.compartments.forEach(function (c) {
-          all.push({ machine: m, compartment: c });
-        });
+      const entry = route.id == null ? null : V.hopperList(status).find(function (x) {
+        return x.compartment.id === route.id;
       });
-      let id = route.id != null ? route.id : V.state.selectedId;
-      if (!all.some(function (x) { return x.compartment.id === id; })) id = all.length ? all[0].compartment.id : null;
-      if (id == null) return { status: status, entry: null };
-      V.state.selectedId = id;
-      const entry = all.find(function (x) {
-        return x.compartment.id === id;
-      });
-      return loadOne(id).then(function (one) {
+      if (!entry) return { status: status, entry: null, missingId: route.id };
+      V.state.selectedId = entry.compartment.id;
+      return loadOne(entry.compartment.id).then(function (one) {
         return { status: status, entry: entry, one: one };
       });
     });
@@ -186,14 +181,15 @@
       return V.loadWithCompartment(route, V.api.getCompartment);
     },
     render: function (data) {
-      if (!data.entry) return '<div class="card"><p class="empty">No compartments to show.</p></div>';
+      if (!data.entry) return V.hopperChooser(data.status, "compartment", data.missingId);
       const m = data.entry.machine;
       const d = data.one;
       const c = d.compartment;
       return (
         '<div class="page-head detail-head"><p class="crumb">' + esc(d.machine_id) + " / " + esc(c.code) + "</p>" +
         '<div class="title-row"><h1 class="page-title">' + esc(c.name) + "</h1>" + urgencySummary(c) +
-        '<span class="meta">' + esc(meta(c)) + "</span></div></div>" + V.actionErrorHtml() +
+        '<span class="meta">' + esc(meta(c)) + "</span>" + V.hopperSwitch(data.status, "compartment", c.id) + "</div></div>" +
+        V.actionErrorHtml() +
         (d.mode === "replay" ? V.replayBanner(m.replay) : "") +
         '<div class="detail-grid">' +
         '<section class="card chart-card"><h2 class="card-title">Stock over the last 24 hours (history, one point per 5 ' +

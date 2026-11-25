@@ -244,7 +244,7 @@
       return V.loadWithCompartment(route, V.api.getRefills);
     },
     render: function (data) {
-      if (!data.entry) return '<div class="card"><p class="empty">No compartments to show.</p></div>';
+      if (!data.entry) return V.hopperChooser(data.status, "refills", data.missingId);
       const m = data.entry.machine;
       const c = data.entry.compartment;
       const history = data.one;
@@ -252,7 +252,8 @@
       const context = m.id + " · " + c.name + " (" + c.code + ") · " + (m.mode === "replay" ? "Replay mode" : "Live mode");
       return (
         '<div class="page-head title-row"><h1 class="page-title">Refill and history</h1>' +
-        '<span class="pill pill--small pill--neutral">' + esc(context) + "</span></div>" + V.actionErrorHtml() +
+        '<span class="pill pill--small pill--neutral">' + esc(context) + "</span>" +
+        V.hopperSwitch(data.status, "refills", c.id) + "</div>" + V.actionErrorHtml() +
         '<div class="refill-grid"><div>' + modeCard(c, phase) + "</div>" +
         '<div class="refill-main">' + stableCard(c, phase, history) + historyCard(c, history) + unrecordedCard(c, history) +
         "</div></div>"

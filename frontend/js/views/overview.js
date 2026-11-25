@@ -248,8 +248,6 @@
     },
     render: function (status) {
       const machines = status.machines || [];
-      const first = machines[0] && machines[0].compartments[0];
-      if (V.state.selectedId == null && first) V.state.selectedId = first.id;
       return (
         '<div class="page-head"><h1 class="page-title">Overview</h1>' +
         '<p class="page-sub">Refreshes every 2 s. Rows run from High to Low urgency; ties go to the lower stock ' +
