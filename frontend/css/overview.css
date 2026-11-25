@@ -1,0 +1,120 @@
+/* Overview: one panel per machine, rows ranked from most to least urgent. */
+.machine {
+  overflow: hidden;
+}
+
+.machine + .machine {
+  margin-top: 24px;
+}
+
+.machine-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px 20px;
+}
+
+.machine-id {
+  margin: 0;
+  font: var(--section);
+}
+
+.machine-kind {
+  font: var(--small);
+  color: var(--sub);
+}
+
+.machine-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+  font: var(--small);
+  color: var(--sub);
+}
+
+.ov-table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+}
+
+.ov-table th {
+  padding: 8px 12px;
+  background: var(--bg);
+  text-align: left;
+  font: var(--label);
+  color: var(--sub);
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
+.ov-table td {
+  padding: 14px 12px;
+  border-top: 1px solid var(--border);
+  vertical-align: middle;
+}
+
+.ov-table th:first-child,
+.ov-table td:first-child {
+  padding-left: 20px;
+}
+
+.ov-name {
+  display: block;
+  font: var(--body-strong);
+  color: var(--text);
+}
+
+.ov-code {
+  display: block;
+  font: 400 12px/16px var(--font);
+  color: var(--sub);
+}
+
+.ov-value {
+  display: block;
+  font: var(--data-large);
+}
+
+.ov-pct {
+  display: block;
+  font: 400 13px/18px var(--font);
+  color: var(--sub);
+}
+
+.bar {
+  display: block;
+  width: 100%;
+  max-width: 245px;
+  height: 6px;
+  margin-top: 4px;
+  border-radius: 3px;
+  background: var(--border);
+  overflow: hidden;
+}
+
+.bar > span {
+  display: block;
+  height: 100%;
+  background: var(--primary);
+}
+
+.ov-note {
+  display: block;
+  margin-top: 4px;
+  font: 400 13px/18px var(--font);
+  color: var(--sub);
+}
+
+.ov-age-label {
+  display: block;
+  font: 400 12px/16px var(--font);
+  color: var(--sub);
+}
+
+.ov-age-value {
+  display: block;
+  font: var(--small-strong);
+  font-weight: 500;
+}

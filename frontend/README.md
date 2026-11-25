@@ -28,6 +28,7 @@ python -m http.server 5173
 | `js/app.js` | Hash routes, navigation, and the 2-second refresh loop |
 | `js/format.js` | Units, times, and every word shown for an API value (urgency, reasons, sensor status) |
 | `js/sample-data.js` | Static sample data shaped like the API responses, and the operator actions on it |
+| `js/views/overview.js`, `css/overview.css` | Overview: the ranked compartment rows of each machine |
 | `tests/` | Checks for the sample data and formatting (`node --test "frontend/tests/*.test.js"` from the repository root, Node 18 or later) |
 
 ## Sample data
