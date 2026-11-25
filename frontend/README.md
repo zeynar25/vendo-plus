@@ -33,7 +33,10 @@ python -m http.server 5173
 | `js/views/overview.js`, `css/overview.css` | Overview: the ranked compartment rows of each machine |
 | `js/views/detail.js`, `css/detail.css` | Compartment detail: 24-hour chart, consumption rate, calibration, recent alerts |
 | `js/views/refills.js`, `css/refills.css` | Refill and history: refill mode, stable readings, past refills, reconciling |
-| `tests/` | Checks for the sample data and formatting (`node --test "frontend/tests/*.test.js"` from the repository root, Node 18 or later) |
+| `machine.html`, `css/machine.css` | Mock coffee machine: the offline stand-in for the Wokwi kit (see below) |
+| `js/machine/kit.js` | The mock kit's logic: Table 3 recipes, simulated load cell readings, batches, sending |
+| `js/machine/page.js` | The mock machine page: drink buttons, brewing, pickup slot, hoppers, kit log |
+| `tests/` | Checks for the sample data, formatting, and the mock kit (`node --test "frontend/tests/*.test.js"` from the repository root, Node 18 or later) |
 
 ## Backend
 
@@ -77,3 +80,77 @@ example `index.html?data=sample&scenario=replay#/overview`:
 Acknowledge, refill, and reconcile change the sample data the way the backend
 would, until the page is reloaded. The sample answers "not stable" twice before a
 refill can start or end, so the waiting state can be seen.
+
+## Mock coffee machine (offline fail-safe)
+
+`machine.html` stands in for the Wokwi kit when a demonstration has no internet
+and the online Wokwi project cannot run. It is a simulated `coffee-01` that runs
+in the browser:
+
+- eight drink buttons with the grams of Table 3 in the paper (recipe version R2);
+  making a drink takes about 4.5 s and takes those grams from the hoppers;
+- clicking the finished cup shows "This is an Americano." (or the drink made);
+- three hoppers (coffee, milk, chocolate) on load cells, each with an HX711
+  display of the grams the kit reads, a load control like the one in Wokwi, a
+  "Fill to 1,000 g" button, and a "Sensor connected" switch;
+- a kit that sends one batch with the three readings to `POST /api/v1/readings`
+  every 5 seconds, exactly as `docs/api-contract.md` describes, and a log of every
+  batch (the JSON sent and the backend's reply) and every machine event.
+
+The cup message is an in-page dialog rather than the browser's `alert()`, because
+a native alert pauses the page's timers and would stop the 5-second batches while
+it is open.
+
+### Running it without internet
+
+Without internet the backend on Render cannot be reached either, so run the
+backend on the presenting laptop. Install its requirements while you still have
+internet (see `backend/README.md`), then:
+
+```bash
+cd backend
+python -m app.cli seed            # first run: prints the coffee-01 device key (local SQLite)
+uvicorn app.main:app              # http://127.0.0.1:8000
+```
+
+1. In `js/config.js`, set `API_BASE_URL` to `"http://127.0.0.1:8000"`. The
+   dashboard and the mock machine both use it.
+2. Open `machine.html`, paste the device key from the seed command, and press
+   **Save**. The mode changes from "Serial only" to "Sending", and each batch in
+   the log shows `201 Accepted`.
+3. Open `index.html` in a second window to show the dashboard.
+
+Keep the machine page in its own window rather than a background tab: browsers
+slow down timers in hidden tabs. The key is saved only in that browser
+(`localStorage`); never commit it. The local database is separate from Supabase,
+so if the seed command says the machines already exist and the key is lost,
+`python -m app.cli seed --rotate-keys` issues a new local key.
+
+Until a key is entered, or while `API_BASE_URL` is the placeholder, the kit runs
+serial-only like the public Wokwi project: batches appear in the log but are not
+sent.
+
+### What it simulates
+
+Everything on this page is simulated, and ingredient use is the recipe amount,
+not measured consumption. The page lists its assumptions under "What this mock
+simulates":
+
+| Item | Value | Source |
+| --- | --- | --- |
+| Grams per drink | Table 3, recipe version R2 (about 150 ml cups) | Paper; `ml/config.py` |
+| Hopper capacity, empty container | 1,000 g, 200 g | Paper (experimental assumptions) |
+| Reading | Median of 5 raw samples, each with Gaussian noise of 2 g SD | Paper (sensing check) |
+| Conversion | 0.42 counts per gram, so readings move in steps of about 2.38 g | Paper (sensing results) |
+| Status ranges | Below −10 g or above 1,050 g rejected (null); −10 to 0 g sent as 0; above 1,000 g `over_capacity` | Contract |
+| Batches | Every 5 s; new session ID at each start (page load or power on); a failed batch is not resent | Contract |
+| Brewing time | 1.5 s dispensing, 3 s brewing | Mock choice |
+| Starting loads | 640 g coffee, 180 g milk, 420 g chocolate on first use; afterwards kept in the browser | Mock choice (arbitrary) |
+
+A rise of more than 20 g outside refill mode (the load control or "Fill to
+1,000 g") is recorded by the backend as an unrecorded refill, as it would be
+with the Wokwi kit. To show a recorded refill, start refill mode on the
+dashboard first, fill the hopper on the machine page, then end refill mode.
+
+When presenting with this page, say that the readings come from the mock
+machine and not from the Wokwi kit.
