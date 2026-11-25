@@ -26,3 +26,23 @@ python -m http.server 5173
 | `css/app.css` | Layout and shared components (pills, tags, buttons, cards) |
 | `js/dom.js` | HTML escaping and the patch helper that updates the page without losing focus |
 | `js/app.js` | Hash routes, navigation, and the 2-second refresh loop |
+| `js/format.js` | Units, times, and every word shown for an API value (urgency, reasons, sensor status) |
+| `js/sample-data.js` | Static sample data shaped like the API responses, and the operator actions on it |
+| `tests/` | Checks for the sample data and formatting (`node --test "frontend/tests/*.test.js"` from the repository root, Node 18 or later) |
+
+## Sample data
+
+There is no live backend yet, so the dashboard reads static sample data shaped
+exactly like the responses in `docs/api-contract.md`. All values are synthetic.
+Choose a scenario with `?scenario=` in the address bar, for example
+`index.html?scenario=replay#/overview`:
+
+| Scenario | What it shows | Figma frames |
+| --- | --- | --- |
+| `live` (default) | Live mode, model urgencies, fresh readings; refill mode works | 3 to 3d (refill) |
+| `replay` | Replay mode from sales records, with the replay banner | 1, 2, 3e |
+| `history` | Live mode while 24 hours of history builds: basic stock warnings, readings 12 s old | 1c, 2b |
+
+Acknowledge, refill, and reconcile change the sample data the way the backend
+would, until the page is reloaded. The sample answers "not stable" twice before a
+refill can start or end, so the waiting state can be seen.
