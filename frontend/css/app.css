@@ -1,0 +1,213 @@
+/* Layout and shared components. View-specific rules live in their own files. */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font: var(--body);
+  -webkit-font-smoothing: antialiased;
+}
+
+a {
+  color: var(--primary);
+}
+
+:focus-visible {
+  outline: 3px solid var(--primary);
+  outline-offset: 2px;
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+/* Header */
+.app-header {
+  display: flex;
+  align-items: center;
+  gap: 32px;
+  min-height: 128px;
+  padding: 0 var(--page-gutter);
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+}
+
+.brand {
+  font: var(--section);
+  font-size: 22px;
+  color: var(--primary);
+  text-decoration: none;
+}
+
+.app-nav {
+  display: flex;
+  gap: 8px;
+}
+
+.app-nav a {
+  padding: 6px 14px;
+  border-radius: var(--radius-control);
+  font: 500 16px/24px var(--font);
+  color: var(--basic-fg);
+  text-decoration: none;
+}
+
+.app-nav a:hover {
+  background: var(--bg);
+}
+
+.app-nav a[aria-current="page"] {
+  background: var(--model-bg);
+  color: var(--primary);
+}
+
+.app-header .data-note {
+  margin-left: auto;
+}
+
+/* Page */
+main {
+  padding: 32px var(--page-gutter) 48px;
+}
+
+main:focus {
+  outline: none; /* focused only so screen readers start at the new view */
+}
+
+.page-title {
+  margin: 0;
+  font: var(--page-title);
+}
+
+.page-sub {
+  margin: 4px 0 0;
+  font: var(--small);
+  color: var(--sub);
+}
+
+.page-head {
+  margin-bottom: 16px;
+}
+
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-card);
+}
+
+.card-title {
+  margin: 0;
+  font: var(--body-strong);
+}
+
+.label-text {
+  font: var(--label);
+  color: var(--sub);
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
+/* Pills: urgency labels and states (word, icon, and color) */
+.pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font: var(--small-strong);
+  white-space: nowrap;
+}
+
+.pill .icon {
+  font-size: 11px;
+  line-height: 1;
+}
+
+.pill--high { background: var(--high-bg); color: var(--high-fg); }
+.pill--medium { background: var(--med-bg); color: var(--med-fg); }
+.pill--low { background: var(--low-bg); color: var(--low-fg); }
+.pill--neutral { background: var(--basic-bg); color: var(--basic-fg); }
+.pill--info { background: var(--model-bg); color: var(--model-fg); }
+.pill--warn { background: var(--med-bg); color: var(--med-fg); }
+
+.pill--small {
+  padding: 2px 8px;
+  font: 600 12px/16px var(--font);
+}
+
+/* Tags: what the urgency is based on */
+.tag {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font: 600 12px/16px var(--font);
+  white-space: nowrap;
+}
+
+.tag--model { background: var(--model-bg); color: var(--model-fg); }
+.tag--basic { background: var(--basic-bg); color: var(--basic-fg); }
+
+/* Buttons */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 40px;
+  padding: 0 18px;
+  border: 1.5px solid var(--basic-fg);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--text);
+  font: var(--small-strong);
+  cursor: pointer;
+}
+
+.btn:hover {
+  background: var(--bg);
+}
+
+.btn--primary,
+.btn--outline {
+  border-radius: 6px;
+  min-height: 36px;
+  padding: 0 16px;
+}
+
+.btn--primary {
+  border-color: var(--primary);
+  background: var(--primary);
+  color: var(--on-primary);
+}
+
+.btn--primary:hover {
+  background: #123a87;
+}
+
+.btn--outline {
+  border-color: var(--primary);
+  color: var(--primary);
+}
+
+.btn:disabled,
+.btn[aria-disabled="true"] {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+.empty {
+  margin: 0;
+  padding: 24px;
+  font: var(--small);
+  color: var(--sub);
+}
