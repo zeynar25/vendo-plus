@@ -64,6 +64,12 @@
   display: block;
   font: var(--body-strong);
   color: var(--text);
+  text-decoration: none;
+}
+
+a.ov-name:hover {
+  color: var(--primary);
+  text-decoration: underline;
 }
 
 .ov-code {

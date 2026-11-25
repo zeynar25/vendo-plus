@@ -102,7 +102,10 @@
   };
 
   V.overview.nameCell = function nameCell(c) {
-    return '<span class="ov-name">' + esc(c.name) + '</span><span class="ov-code">' + esc(c.code) + "</span>";
+    return (
+      '<a class="ov-name" href="#/compartment/' + esc(c.id) + '">' + esc(c.name) + "</a>" +
+      '<span class="ov-code">' + esc(c.code) + "</span>"
+    );
   };
 
   function row(c) {

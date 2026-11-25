@@ -29,6 +29,7 @@ python -m http.server 5173
 | `js/format.js` | Units, times, and every word shown for an API value (urgency, reasons, sensor status) |
 | `js/sample-data.js` | Static sample data shaped like the API responses, and the operator actions on it |
 | `js/views/overview.js`, `css/overview.css` | Overview: the ranked compartment rows of each machine |
+| `js/views/detail.js`, `css/detail.css` | Compartment detail: 24-hour chart, consumption rate, calibration, recent alerts |
 | `tests/` | Checks for the sample data and formatting (`node --test "frontend/tests/*.test.js"` from the repository root, Node 18 or later) |
 
 ## Sample data
