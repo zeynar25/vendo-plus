@@ -4,7 +4,7 @@ This is the agreement between the Wokwi kit, the backend, and the dashboard.
 The firmware and the frontend follow this file; if the code and this file
 disagree, fix one of them in the same commit.
 
-- Base URL: `https://<service-name>.onrender.com` (local: `http://127.0.0.1:8000`)
+- Base URL: `https://vendoplus-backend.onrender.com` (local: `http://127.0.0.1:8000`)
 - All bodies are JSON. All times are ISO 8601 with an offset (UTC `Z` recommended).
 - Interactive docs generated from the code: `GET /docs`.
 
