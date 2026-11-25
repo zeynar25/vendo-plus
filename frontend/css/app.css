@@ -211,3 +211,19 @@ main:focus {
   font: var(--small);
   color: var(--sub);
 }
+
+.action-error {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+  padding: 10px 16px;
+  border-radius: var(--radius-control);
+  background: var(--high-bg);
+  color: var(--high-fg);
+  font: var(--small);
+}
+
+.action-error .btn {
+  margin-left: auto;
+}

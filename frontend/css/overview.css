@@ -118,3 +118,68 @@
   font: var(--small-strong);
   font-weight: 500;
 }
+
+.ov-none {
+  font: var(--small);
+  color: var(--sub);
+}
+
+.ov-warn {
+  color: var(--med-fg);
+}
+
+.ov-prompt {
+  display: block;
+  margin-bottom: 6px;
+  font: 500 12px/16px var(--font);
+  color: var(--med-fg);
+}
+
+.btn--small {
+  min-height: 30px;
+  padding: 0 12px;
+  font: 600 13px/18px var(--font);
+}
+
+.ov-table tr.notice td {
+  padding: 0;
+  border-top: 0;
+}
+
+/* Replay banner (also used on the detail view) */
+.replay-banner {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 10px 20px;
+  border: 1px solid var(--primary);
+  background: var(--info-bg);
+  color: var(--primary);
+  font: 400 13px/18px var(--font);
+}
+
+.replay-title {
+  font: var(--small-strong);
+}
+
+.replay-meta {
+  display: flex;
+  gap: 24px;
+  font-weight: 600;
+  font-size: 12px;
+}
+
+.offline {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 24px 20px;
+  border-top: 1px solid var(--border);
+  background: var(--high-bg);
+  color: var(--high-fg);
+  font: var(--small);
+}
+
+.offline strong {
+  font: var(--body-strong);
+}

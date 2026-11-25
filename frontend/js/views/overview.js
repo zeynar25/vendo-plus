@@ -42,18 +42,43 @@
 
   V.overview = V.overview || {};
 
-  /** Cells for a compartment with a usable reading. Later commits add more states. */
+  function stockCell(c) {
+    if (c.value == null) {
+      // Sensor problem: no value, only the sensor status in words.
+      const word = V.SENSOR_STATUS[c.status] || "No reading yet";
+      return '<span class="pill pill--small pill--neutral">' + esc(word) + '</span><span class="ov-pct">No value</span>';
+    }
+    let html =
+      '<span class="ov-value">' + esc(fmt.amount(c.value, c.unit)) + "</span>" +
+      '<span class="ov-pct">' + esc(fmt.percent(c.percent)) + " of " + esc(fmt.capacity(c.capacity, c.unit)) +
+      "</span>" + V.stockBar(c.percent);
+    if (c.status === "over_capacity") html += '<span class="ov-note ov-warn">' + esc(V.SENSOR_STATUS.over_capacity) + "</span>";
+    return html;
+  }
+
+  function urgencyCell(c) {
+    if (c.refill_open) return '<span class="pill pill--info">Refill in progress</span>';
+    if (!c.label) return '<span class="ov-none">No urgency</span>';
+    return V.urgencyPill(c.label);
+  }
+
+  function basisCell(c) {
+    if (!c.label) return '<span class="ov-note">' + esc(V.NO_LABEL_REASON[c.reason] || "No urgency.") + "</span>";
+    return V.basisTag(c.method) + '<span class="ov-note">' + esc(V.basisText(c.method, c.reason)) + "</span>";
+  }
+
+  function actionCell(c) {
+    if (c.unrecorded_refill_id == null) return "";
+    return (
+      '<span class="ov-prompt">Unrecorded refill detected</span>' +
+      '<button type="button" class="btn btn--outline btn--small" data-action="reconcile" data-reset="' +
+      esc(c.unrecorded_refill_id) + '">Reconcile refill</button>'
+    );
+  }
+
+  /** The cells of one compartment row, for every state in the Figma guideline. */
   V.overview.cells = function cells(c) {
-    return {
-      stock:
-        '<span class="ov-value">' + esc(fmt.amount(c.value, c.unit)) + "</span>" +
-        '<span class="ov-pct">' + esc(fmt.percent(c.percent)) + " of " + esc(fmt.capacity(c.capacity, c.unit)) +
-        "</span>" + V.stockBar(c.percent),
-      urgency: V.urgencyPill(c.label),
-      basis: V.basisTag(c.method) + '<span class="ov-note">' + esc(V.basisText(c.method, c.reason)) + "</span>",
-      age: ageCell(c),
-      action: "",
-    };
+    return { stock: stockCell(c), urgency: urgencyCell(c), basis: basisCell(c), age: ageCell(c), action: actionCell(c) };
   };
 
   V.overview.nameCell = function nameCell(c) {
@@ -74,8 +99,49 @@
     );
   }
 
-  /** Extra full-width rows above the compartments (banners); later commits add them. */
+  /** Full-width rows above the compartments. */
   V.overview.notices = V.overview.notices || [];
+
+  /** Replayed readings always carry this banner; they are never called live or measured. */
+  V.replayBanner = function replayBanner(replay) {
+    if (!replay) return "";
+    return (
+      '<div class="replay-banner" role="note">' +
+      '<strong class="replay-title">Replayed from sales records, not live</strong>' +
+      "<span>These stock values are simulated by replaying sales records. They are not measured and not live.</span>" +
+      '<span class="replay-meta"><span>Source time: ' + esc(fmt.fullTime(replay.source_time)) + "</span>" +
+      "<span>Speed: " + esc(replay.speed) + "×</span></span></div>"
+    );
+  };
+
+  V.overview.notices.push(function (m) {
+    if (m.mode !== "replay") return "";
+    return '<tr class="notice" data-key="replay"><td colspan="6">' + V.replayBanner(m.replay) + "</td></tr>";
+  });
+
+  V.actions = V.actions || {};
+  V.actions.reconcile = function (el) {
+    el.disabled = true;
+    V.state.actionError = null;
+    return V.api.reconcile(Number(el.getAttribute("data-reset"))).catch(V.showActionError);
+  };
+
+  /** Keeps a failed action's message on screen until it is dismissed or another action runs. */
+  V.showActionError = function showActionError(err) {
+    V.state.actionError = (err && err.detail) || (err && err.message) || "The action failed.";
+  };
+
+  V.actions["dismiss-error"] = function () {
+    V.state.actionError = null;
+  };
+
+  V.actionErrorHtml = function actionErrorHtml() {
+    if (!V.state.actionError) return "";
+    return (
+      '<div class="action-error" role="alert"><span>The last action failed: ' + esc(V.state.actionError) + "</span>" +
+      '<button type="button" class="btn btn--small" data-action="dismiss-error">Dismiss</button></div>'
+    );
+  };
 
   function hoppers(m) {
     const n = m.compartments.length;
@@ -92,6 +158,16 @@
   }
 
   V.overview.body = function body(m) {
+    if (!m.online) {
+      // Offline: an offline message instead of the stock values.
+      const age = m.last_reading_age_s == null ? "" : " The last valid reading is " + fmt.age(m.last_reading_age_s) + " old.";
+      return (
+        '<tr class="notice" data-key="offline"><td colspan="6"><div class="offline" role="status">' +
+        "<strong>" + esc(m.id) + " is offline</strong>" +
+        "<span>No valid reading has arrived for 15 s, so its stock values are hidden." + esc(age) +
+        " They return when the kit reports again.</span></div></td></tr>"
+      );
+    }
     const notices = V.overview.notices
       .map(function (fn) {
         return fn(m);
@@ -126,7 +202,7 @@
       return (
         '<div class="page-head"><h1 class="page-title">Overview</h1>' +
         '<p class="page-sub">Refreshes every 2 s. Rows run from High to Low urgency; ties go to the lower stock ' +
-        "percentage.</p></div>" +
+        "percentage.</p></div>" + V.actionErrorHtml() +
         (machines.length ? machines.map(panel).join("") : '<div class="card"><p class="empty">No machines.</p></div>')
       );
     },

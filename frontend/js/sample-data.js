@@ -8,6 +8,8 @@
  *   replay   replay mode from sales records (Figma frames 1 and 2)
  *   history  live mode while 24 hours of history builds; readings 12 s old
  *            (Figma frames 1c and 2b)
+ *   offline  no valid reading for 20 s, so the machine is offline
+ *   sensors  one hopper's sensor is not ready, one reads above capacity
  *
  * The operator actions (acknowledge, refill, reconcile) change this in-memory
  * data the way the backend would, until the page is reloaded.
@@ -86,6 +88,7 @@
 
   function build(name) {
     const now = V.now();
+    if (name === "offline" || name === "sensors") return variant(build("live"), name);
     const replay = name === "replay";
     const building = name === "history";
     const end = replay ? Date.parse("2025-01-14T09:30:00+08:00") : now;
@@ -157,6 +160,21 @@
     };
   }
 
+  /** Live data with the states the Figma frames do not show. */
+  function variant(s, name) {
+    s.name = name;
+    if (name === "offline") s.fixedAge = 20;
+    if (name === "sensors") {
+      const coffee = s.compartments[0];
+      const chocolate = s.compartments[2];
+      coffee.value = 1032;
+      coffee.status = "over_capacity";
+      chocolate.value = null;
+      chocolate.status = "unavailable";
+    }
+    return s;
+  }
+
   function refill(id, status, kind, start, length, before, after) {
     return {
       id: id, status: status, kind: kind, started_at: iso(start), ended_at: iso(start + length),
@@ -175,7 +193,7 @@
   function pickScenario() {
     const search = root.location && root.location.search ? root.location.search : "";
     const name = new URLSearchParams(search).get("scenario");
-    return ["live", "replay", "history"].indexOf(name) >= 0 ? name : "live";
+    return ["live", "replay", "history", "offline", "sensors"].indexOf(name) >= 0 ? name : "live";
   }
 
   let store = null;

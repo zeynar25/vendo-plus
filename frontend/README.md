@@ -43,6 +43,8 @@ Choose a scenario with `?scenario=` in the address bar, for example
 | `live` (default) | Live mode, model urgencies, fresh readings; refill mode works | 3 to 3d (refill) |
 | `replay` | Replay mode from sales records, with the replay banner | 1, 2, 3e |
 | `history` | Live mode while 24 hours of history builds: basic stock warnings, readings 12 s old | 1c, 2b |
+| `offline` | No valid reading for 20 s: the offline message replaces the stock values | (states table) |
+| `sensors` | One hopper's sensor not ready, one reading above capacity | (states table) |
 
 Acknowledge, refill, and reconcile change the sample data the way the backend
 would, until the page is reloaded. The sample answers "not stable" twice before a

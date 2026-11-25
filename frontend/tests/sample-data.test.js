@@ -57,6 +57,21 @@ test("each scenario matches its Figma frame", async () => {
   assert.equal(detail.consumption_per_hour, null);
 });
 
+test("offline and sensor scenarios follow the contract's rules", async () => {
+  V.resetSample("offline");
+  let m = (await V.api.getStatus()).machines[0];
+  assert.equal(m.online, false); // no valid reading for more than 15 s
+
+  V.resetSample("sensors");
+  m = (await V.api.getStatus()).machines[0];
+  const byCode = Object.fromEntries(Array.from(m.compartments, (c) => [c.code, c]));
+  assert.equal(byCode.chocolate.value, null);
+  assert.equal(byCode.chocolate.reason, "invalid_reading");
+  assert.equal(byCode.coffee.status, "over_capacity");
+  assert.equal(byCode.coffee.label, null); // over capacity never drives urgency
+  assert.equal(m.compartments[0].code, "milk"); // labeled rows rank first
+});
+
 test("acknowledging hides only Medium and High alerts", async () => {
   V.resetSample("live");
   await V.api.acknowledge(2);
